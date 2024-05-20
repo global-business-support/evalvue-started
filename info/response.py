@@ -1,19 +1,28 @@
 class response:
 
     def __init__(self):
-        self.user_Id = None
+        self.user_id = None
+        self.email = None
+        self.organization_id=None
+        self.employee_id = None
         self.document_type = None
         self.listed_type = None
         self.sector_type=None
-        self.organization_id=None
         self.is_verified=None
         self.is_user_register_successfull=None
         self.error=None
-        self.is_login_successfully = None
-        self.is_organization_created_successfully = None
-        self.is_organizarion_view_page_rendered_successfully = None
-        self.is_employee_added_successfully = None
-        self.employee_id = None
+        self.is_login_successfull = None
+        self.is_employee_register_successfull = None
+        self.employee_list = None
+        self.review_list = None
+        self.is_employee_mapped_to_organization_successfull = None
+        self.is_review_added_successfull = None
+        self.is_review_mapped_to_employee_successfull = None
+        self.otp_send_successfull = None
+        self.otp_verified_successfull = None
+        self.password_updated_successFull = None
+        self.otp_is_expired = None
+        self.incorrect_otp = None
 
     def convertToJSON(self):
         res = {}
