@@ -97,7 +97,7 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'sql.server.pyodbc',
+        'ENGINE': 'mssql',
         'NAME': 'evalvue_db',
         'USER': 'admin',
         'PASSWORD': 'welcome4U',
