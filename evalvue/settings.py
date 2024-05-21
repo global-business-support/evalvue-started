@@ -97,7 +97,7 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'mssql',
+        'ENGINE': 'sql.server.pyodbc',
         'NAME': 'evalvue_db',
         'USER': 'admin',
         'PASSWORD': 'welcome4U',
@@ -108,6 +108,7 @@ DATABASES = {
         
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
+            'extra_params': 'TrustServerCertificate=yes',
         },
     }
 }
