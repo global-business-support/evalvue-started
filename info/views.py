@@ -153,6 +153,13 @@ class CreateEmployeeAPIView(APIView):
                 designation = data.get('designation')
 
                 res.is_employee_register_successfull = False
+                if not re.match(r'^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$', email):
+                    res.is_employee_register_successfull = False
+                    res.error = 'Invalid email'
+                elif not re.match(r'^[0-9]{4}[0-9]{4}[0-9]{4}$)|(^[0-9]{4}\s[0-9]{4}\s[0-9]{4}$)|(^[0-9]{4}-[0-9]{4}-[0-9]{4}$', email):
+                    res.is_employee_register_successfull = False
+                    res.error = 'Invalid aadhar'
+
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT EmployeeId, Name FROM Employee where AadharNumber = %s",[aadhar_number])
                     employee_details_by_aadhar_number = cursor.fetchone()
@@ -211,6 +218,7 @@ class LoginUserAPIView(APIView):
                     res.error = 'Email and password are required'
                     # return JsonResponse({'error': 'Email and password are required'}, status=400)
                 else:
+
                     with connection.cursor() as cursor:
                         cursor.execute("SELECT UserId, Password FROM [User] WHERE Email = %s", [email])
                         user_details = cursor.fetchone()
@@ -388,7 +396,7 @@ class VerifyOtpAPIView(APIView):
                 user_id = data.get("user_id")
                 email = data.get("email")
                 otp_number = data.get("otp_number")
-                res.otp_verified_successfull = False
+                res.otp_verified_successfull = Fals
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT OtpNumber,CreatedOn from OTP where email = %s ORDER BY CreatedOn desc",[email])
                     otp_result = cursor.fetchone()
@@ -435,7 +443,7 @@ class UpdatePasswordAPIView(APIView):
 
                 if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$', password):
                     res.password_updated_successFull = False
-                    res.error = 'Invalid password'
+                    res.error = 'Choose strong password'
                 else:
                     with connection.cursor() as cursor:
                         cursor.execute("UPDATE [User] SET Password = %s, ModifiedOn = GETDATE() where UserId = %s",[password,user_id])
