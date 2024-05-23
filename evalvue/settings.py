@@ -14,6 +14,8 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = '/var/www/api.jaydeep.com/media/'
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,6 +30,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
 ALLOWED_HOSTS = ['*']
+# 'api.evalvue.com','93.127.185.167',
 
 # Application definition
 
@@ -59,14 +62,17 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PARSER_CLASSES': (
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser'
     ),
     'DEFAULT_CONTENT_TYPE': 'application/json',
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Adjust this to your React/Vite application's domain
-    # Add more origins if needed
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",  # Adjust this to your React/Vite application's domain
+#     # Add more origins if needed
+# ]
+
 
 ROOT_URLCONF = 'evalvue.urls'
 
@@ -96,17 +102,37 @@ DATABASES = {
     'default': {
         'ENGINE': 'mssql',
         'NAME': 'evalvue_db',
-        # 'USER': 'admin',
-        # 'PASSWORD': 'welcome4U',
-        # 'HOST': 'evalvue-database-db.ctq2umegsklt.ap-south-1.rds.amazonaws.com',  # Usually 'localhost' or IP address
-        'HOST': 'DESKTOP-CD7S690\SQLEXPRESS',
+        'USER': 'admin',
+        'PASSWORD': 'welcome4U',
+        'HOST': 'evalvue-database-db.ctq2umegsklt.ap-south-1.rds.amazonaws.com',  # Usually 'localhost' or IP address
+        'PORT': '1433',  # Usually '1433' for MSSQL
+        # 'HOST': 'DESKTOP-CD7S690\SQLEXPRESS',
         
-        # 'PORT': '1433',  # Usually '1433' for MSSQL
+        
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
+            'extra_params': 'TrustServerCertificate=yes',
         },
     }
 }
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django_redis.cache.RedisCache',
+#         'LOCATION': 'redis://127.0.0.1:6379/1',
+#         'OPTIONS': {
+#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+#         }
+#     }
+# }
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'jaydeepkarode5656@gmail.com'  # Your Gmail address
+EMAIL_HOST_PASSWORD = 'bojayjrzsafkihxa'
+# EMAIL_HOST_USER = 'deepakshahwal999@gmail.com'
+# EMAIL_HOST_PASSWORD = 'ims zrn otb ujun icq'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
