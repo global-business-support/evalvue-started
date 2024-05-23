@@ -145,21 +145,30 @@ class CreateEmployeeAPIView(APIView):
                 data = request.data
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
-                employee_name = data.get('employee_name')
+                first_name = data.get('first_name')
+                last_name = data.get('last_name')
+                # employee_name = data.get('employee_name')
                 employee_image = data.get('employee_image')
                 aadhar_number = data.get('aadhar_number')
+                confirm_aadhar_number = data.get('confirm_aadhar_number')
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 designation = data.get('designation')
-
-                res.is_employee_register_successfull = False
-                if not re.match(r'^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$', email):
+                employee_name = first_name + " " + last_name
+                
+                
+                res.is_employee_register_successfull = True
+                if aadhar_number != confirm_aadhar_number:
+                    res.is_employee_register_successfull = False
+                    res.error = 'Aadhar number not matched'
+                elif not re.match( r"^(?:(?:[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*)|(?:\".+\"))@(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?$",email):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid email'
-                elif not re.match(r'^[0-9]{4}[0-9]{4}[0-9]{4}$)|(^[0-9]{4}\s[0-9]{4}\s[0-9]{4}$)|(^[0-9]{4}-[0-9]{4}-[0-9]{4}$', email):
+                elif not re.match(r"^\d{12}$",aadhar_number):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid aadhar'
-
+                if(not res.is_employee_register_successfull):
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT EmployeeId, Name FROM Employee where AadharNumber = %s",[aadhar_number])
                     employee_details_by_aadhar_number = cursor.fetchone()
@@ -192,6 +201,7 @@ class CreateEmployeeAPIView(APIView):
                     res.user_id = user_id
                     res.organization_id = organization_id
                     return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+        
         except IntegrityError as e:
             print('Database integrity error: {}'.format(str(e)))
             res.is_employee_register_successfull = False

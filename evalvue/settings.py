@@ -14,6 +14,8 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = '/var/www/api.jaydeep.com/media/'
 
 
 # Quick-start development settings - unsuitable for production
@@ -27,7 +29,8 @@ DEBUG = True
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
-ALLOWED_HOSTS = ['api.evalvue.com','93.127.185.167']
+ALLOWED_HOSTS = ['*']
+# 'api.evalvue.com','93.127.185.167',
 
 # Application definition
 
@@ -65,10 +68,10 @@ REST_FRAMEWORK = {
     'DEFAULT_CONTENT_TYPE': 'application/json',
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Adjust this to your React/Vite application's domain
-    # Add more origins if needed
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",  # Adjust this to your React/Vite application's domain
+#     # Add more origins if needed
+# ]
 
 
 ROOT_URLCONF = 'evalvue.urls'

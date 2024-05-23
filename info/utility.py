@@ -1,9 +1,27 @@
-def save_image(path,image):
-    image_path = path + image.name
-    with open(image_path, 'wb') as destination:
+from evalvue import settings
+import os
+
+def save_image(folder_name,image):
+    project_root = settings.BASE_DIR
+
+    # Construct the full path for the folder
+    folder_path = os.path.join(project_root, folder_name)
+
+    print(folder_path)
+
+    # Create the folder if it doesn't exist
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    # Construct the full path for the file
+    file_path = os.path.join(folder_path, image.name)
+
+    print(file_path)
+
+    with open(file_path, 'wb') as destination:
         for chunk in image.chunks():
             destination.write(chunk)
-    return image_path 
+    return file_path 
 
 
 
