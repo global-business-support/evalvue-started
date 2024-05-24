@@ -480,20 +480,15 @@ class OrganizationAPIView(APIView):
             with connection.cursor() as cursor:
                 cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s",[user_id])
                 organization_details_by_user_id = cursor.fetchall()
-                print(organization_details_by_user_id)
                 if organization_details_by_user_id:
                     res.is_organization_mapped = True
                     organization_id_list = []
                     for organization_detail in organization_details_by_user_id:
                         organization_id_list.append(str(organization_detail[0]))
-                    print(organization_id_list)
                     strr = ','.join(organization_id_list)
-                    #strr = "select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In {}".format(tuple(organization_id_list))
-                    print(strr)
                     cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({})".format(strr))
                     
                     organization_detail_list_by_id = cursor.fetchall()
-                    print(organization_detail_list_by_id)
                     organization_detail_list = []
                     for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
                         org = organization()
@@ -503,11 +498,8 @@ class OrganizationAPIView(APIView):
                         org.sector_name = sector_type_data[sector_id]['Name']
                         org.listed_name = listed_type_data[listed_id]['Name']
                         org.country_name = country_data[country_id]['Name']
-                        print(country_data[country_id],org.country_name)
                         org.state_name = state_data[state_id]['Name']
-                        print(state_data[state_id],org.state_name)
                         org.city_name = city_data[city_id]['Name']
-                        print(city_data[city_id],org.city_name)
                         org.area = area
                         org.pincode = pincode
                         organization_detail_list.append(org.to_dict())
@@ -528,10 +520,6 @@ class OrganizationAPIView(APIView):
             print('An unexpected error occurred: {}'.format(str(e)))
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-##########################################################################################################
 
 class CreateOrganizationAPIview(APIView):
     @csrf_exempt
@@ -557,14 +545,12 @@ class CreateOrganizationAPIview(APIView):
                 document_file = data.get("document_file")
                 with connection.cursor() as cursor:
                     is_valid = validate_organization(document_number,res)
-                    print(is_valid)
                     if is_valid:
                         organization_image = save_image(organization_image_path,organization_image)
                         document_file = save_image(document_image_path,document_file)
                         cursor.execute("Insert into Organization(Name,Image,DocumentTypeId,DocumentNumber,GSTIN,SectorId,ListedId,CountryId,StateId,CityId,Area,PinCode,DocumentFile,NumberOfEmployee,CreatedOn) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,GETDATE())",
                                        [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
                         cursor.execute("Select OrganizationId from Organization where DocumentNumber = %s",[document_number])
-                        print("deepak")
                         organization_details = cursor.fetchone()
                         organization_id = organization_details[0]
                         cursor.execute("Insert into UserOrganizationMapping(UserId, OrganizationId, IsVerified,CreatedOn) values (%s,%s,%s,GETDATE())",[user_id,organization_id,0])
