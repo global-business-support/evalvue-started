@@ -27,24 +27,21 @@ from info.utility import hash_password, save_image, send_email, verify_password
 from .employee import *
 from .response import *
 from .review import *
+import logging
+logger = logging.getLogger('info')
 
-
-#creating user in user table
 class CreateUserAPIView(APIView):
     @csrf_exempt
     def post(self, request):
         res = response()
         try:
             with transaction.atomic():
-            # Get data from the request
                 data = request.data
                 name = data.get('name')
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 password = data.get('password')
                 res.is_user_register_successfull = True
-                
-                # Validate data using regex
                 if not re.match(r'(?=.{3,25}$)[a-zA-Z]+(?:\s[a-zA-Z]+)?(?:\s[a-zA-Z]+)?$',name):
                     res.is_user_register_successfull = False
                     res.error = 'Invalid Name'
@@ -61,7 +58,6 @@ class CreateUserAPIView(APIView):
                 if(not res.is_user_register_successfull):
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
 
-                # Save data to user table
                 with connection.cursor() as cursor:
                     cursor.execute("Select count(UserId) from [User] where Email = %s or MobileNumber = %s",[email,mobile_number])
                     count = cursor.fetchone()[0]
@@ -86,7 +82,7 @@ class CreateUserAPIView(APIView):
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.error('An unexpected error occurred: {}'.format(str(e)))
             res.is_user_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -108,9 +104,9 @@ class EmployeeAPIView(APIView):
                         employee_list = []
                         for employee_id_result in employee_id_results:
                             employee_id = employee_id_result[0]
-                            cursor.execute("SELECT EmployeeId, Name, Email, MobileNumber, Image, AadharNumber FROM Employee WHERE EmployeeId = %s", [employee_id])
+                            cursor.execute("SELECT EmployeeId, Name, Email, MobileNumber, Image, AadharNumber,Designation FROM Employee WHERE EmployeeId = %s", [employee_id])
                             employee_details = cursor.fetchall()
-                            for emp_id,emp_name,emp_email,emp_mobile,emp_image,emp_aadhar in employee_details:
+                            for emp_id,emp_name,emp_email,emp_mobile,emp_image,emp_aadhar,emp_designation in employee_details:
                                 emp = employee()
                                 emp.employee_id = emp_id
                                 emp.aadhar_number = emp_aadhar
@@ -118,6 +114,7 @@ class EmployeeAPIView(APIView):
                                 emp.employee_name = emp_name
                                 emp.email = emp_email
                                 emp.mobile_number = emp_mobile
+                                emp.designation = emp_designation
                                 employee_list.append(emp.to_dict())
                         res.is_employee_mapped_to_organization_successfull = True                    
                         res.user_id = user_id
@@ -147,7 +144,6 @@ class CreateEmployeeAPIView(APIView):
                 organization_id = data.get('organization_id')
                 first_name = data.get('first_name')
                 last_name = data.get('last_name')
-                # employee_name = data.get('employee_name')
                 employee_image = data.get('employee_image')
                 aadhar_number = data.get('aadhar_number')
                 confirm_aadhar_number = data.get('confirm_aadhar_number')
@@ -155,8 +151,6 @@ class CreateEmployeeAPIView(APIView):
                 mobile_number = data.get('mobile_number')
                 designation = data.get('designation')
                 employee_name = first_name + " " + last_name
-                
-                
                 res.is_employee_register_successfull = True
                 if aadhar_number != confirm_aadhar_number:
                     res.is_employee_register_successfull = False
@@ -226,9 +220,7 @@ class LoginUserAPIView(APIView):
                 if not email or not password:
                     res.is_login_successfull = False
                     res.error = 'Email and password are required'
-                    # return JsonResponse({'error': 'Email and password are required'}, status=400)
                 else:
-
                     with connection.cursor() as cursor:
                         cursor.execute("SELECT UserId, Password FROM [User] WHERE Email = %s", [email])
                         user_details = cursor.fetchone()
@@ -277,16 +269,17 @@ class CreateReviewAPIView(APIView):
                     cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,image,rating])
                     cursor.execute("SELECT max(ReviewId) from Review")
                     review_id_inserted_row = cursor.fetchone()
+
                     if review_id_inserted_row:
                         review_id = review_id_inserted_row[0]
                         cursor.execute("INSERT into ReviewEmployeeOrganizationMapping(ReviewId, OrganizationId, EmployeeId, CreatedOn) values(%s,%s,%s,GETDATE())",[review_id,organization_id,employee_id])
-                        # review_employee_organization_mapped = cursor.fetchone()
-                        # if review_employee_organization_mapped:
+
                     res.is_review_added_successfull = True
                     res.user_id = user_id
                     res.organization_id = organization_id
                     res.employee_id = employee_id
                     return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+                
         except IntegrityError as e:
             print('Database integrity error: {}'.format(str(e)))
             res.is_review_added_successfull = False
@@ -406,7 +399,7 @@ class VerifyOtpAPIView(APIView):
                 user_id = data.get("user_id")
                 email = data.get("email")
                 otp_number = data.get("otp_number")
-                res.otp_verified_successfull = Fals
+                res.otp_verified_successfull = False
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT OtpNumber,CreatedOn from OTP where email = %s ORDER BY CreatedOn desc",[email])
                     otp_result = cursor.fetchone()
