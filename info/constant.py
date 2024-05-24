@@ -1,8 +1,11 @@
 generic_error_message = "Something went wrong , Please try after sometime."
 #orgnization image path
-organization_image_path = r"C:\Users\HP\Desktop\evalvue_images\organization_images" 
+organization_image_path = "organizations" 
 employee_image_path = "employees"
-document_image_path = r"C:\Users\HP\Desktop\evalvue_images\document_images"
+document_image_path = "documents"
 employee_already_mapped_to_organization = "Employee having name {} is currently mapped to organization {}."
 organization_name_not_found = "Organization name not found for organization id {}."
+organization_found_document_number = "Organization {} alreday mapped with this {} number"
 salt = '##evalvue@()@#!'
+database_root = 'http://api.evalvue.com/media/'
+email_otp_template_path = 'info/email_template.html'

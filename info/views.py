@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
 from rest_framework import status
@@ -21,10 +22,11 @@ import re
 import random
 from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
-from info import review
+from info import organization, review
 from info.constant import *
-from info.utility import hash_password, save_image, send_email, verify_password
+from info.utility import hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password
 from .employee import *
+from .organization import *
 from .response import *
 from .review import *
 import logging
@@ -372,7 +374,7 @@ class ForgotPasswordAPIView(APIView):
                             otp_number = ''.join(random.choices('0123456789', k=6))
                             cursor.execute("INSERT into [OTP] (Email, OtpNumber, Is_Verified, CreatedOn) VALUES(%s,%s,%s,GETDATE())",[email_result[1], otp_number,False])
 
-                            ok = send_email(email_result[1],otp_number)
+                            ok = send_email(email_result[1],email_otp_template_path,{'otp_number': otp_number})
                             if ok:
                                 res.otp_send_successfull = True
                                 res.user_id = email_result[0]
@@ -462,6 +464,157 @@ class UpdatePasswordAPIView(APIView):
             res.password_updated_successFull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+class OrganizationAPIView(APIView):
+    @csrf_exempt
+    def post(self,request):
+        try:
+            data = request.data
+            user_id = data.get('user_id')
+            res = response()
+            res.user_id = user_id
+            with connection.cursor() as cursor:
+                cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s",[user_id])
+                organization_details_by_user_id = cursor.fetchall()
+                print(organization_details_by_user_id)
+                if organization_details_by_user_id:
+                    res.is_organization_mapped = True
+                    organization_id_list = []
+                    for organization_detail in organization_details_by_user_id:
+                        organization_id_list.append(str(organization_detail[0]))
+                    print(organization_id_list)
+                    strr = ','.join(organization_id_list)
+                    #strr = "select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In {}".format(tuple(organization_id_list))
+                    print(strr)
+                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({})".format(strr))
+                    
+                    organization_detail_list_by_id = cursor.fetchall()
+                    print(organization_detail_list_by_id)
+                    organization_detail_list = []
+                    for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
+                        org = organization()
+                        org.organization_id = id
+                        org.name = name
+                        org.image = image
+                        org.sector_name = sector_type_data[sector_id]['Name']
+                        org.listed_name = listed_type_data[listed_id]['Name']
+                        org.country_name = country_data[country_id]['Name']
+                        print(country_data[country_id],org.country_name)
+                        org.state_name = state_data[state_id]['Name']
+                        print(state_data[state_id],org.state_name)
+                        org.city_name = city_data[city_id]['Name']
+                        print(city_data[city_id],org.city_name)
+                        org.area = area
+                        org.pincode = pincode
+                        organization_detail_list.append(org.to_dict())
+                    res.organization_list = organization_detail_list
+                    return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+                else: 
+                    res.is_organization_mapped = False
+                    populateAddOrganizationData(res)
+                    return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+
+
+        except IntegrityError as e:
+            print('Database integrity error: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            print('An unexpected error occurred: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+##########################################################################################################
+
+class CreateOrganizationAPIview(APIView):
+    @csrf_exempt
+    def post(self, request):
+        res = response()
+        try:
+            with transaction.atomic():
+                data = request.data
+                user_id = data.get("user_id")
+                organization_name = data.get("organization_name")
+                organization_image = data.get("organization_image")
+                document_type_id = data.get("document_type_id")
+                document_number = data.get("document_number")
+                gstin = data.get("gstin")
+                sector_id = data.get("sector_id")
+                listed_id = data.get("listed_id")
+                country_id = data.get("country_id")
+                state_id = data.get("state_id")
+                city_id = data.get("city_id")
+                area = data.get("area")
+                pincode = data.get("pincode")
+                number_of_employee = data.get("number_of_employee")
+                document_file = data.get("document_file")
+                with connection.cursor() as cursor:
+                    is_valid = validate_organization(document_number,res)
+                    print(is_valid)
+                    if is_valid:
+                        organization_image = save_image(organization_image_path,organization_image)
+                        document_file = save_image(document_image_path,document_file)
+                        cursor.execute("Insert into Organization(Name,Image,DocumentTypeId,DocumentNumber,GSTIN,SectorId,ListedId,CountryId,StateId,CityId,Area,PinCode,DocumentFile,NumberOfEmployee,CreatedOn) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,GETDATE())",
+                                       [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
+                        cursor.execute("Select OrganizationId from Organization where DocumentNumber = %s",[document_number])
+                        print("deepak")
+                        organization_details = cursor.fetchone()
+                        organization_id = organization_details[0]
+                        cursor.execute("Insert into UserOrganizationMapping(UserId, OrganizationId, IsVerified,CreatedOn) values (%s,%s,%s,GETDATE())",[user_id,organization_id,0])
+                        res.is_organization_register_successfull = True
+                        res.user_id = user_id
+                        res.organization_id = organization_id
+                        return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+                    else:
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                    
+        except IntegrityError as e:
+            print('Database integrity error: {}'.format(str(e)))
+            res.is_organization_created_successfully = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            print('An unexpected error occurred: {}'.format(str(e)))
+            res.is_organization_created_successfully = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class AddOrganizationAPIview(APIView):
+    @csrf_exempt
+    def post(self, request):
+        data = request.data
+        user_id = data.get('user_id')
+        res = response()
+        res.user_id = user_id
+        try:
+            with transaction.atomic():
+                populateAddOrganizationData(res)
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+
+        except IntegrityError as e:
+            print('Database integrity error: {}'.format(str(e)))
+            res.is_organization_created_successfully = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            print('An unexpected error occurred: {}'.format(str(e)))
+            res.is_organization_created_successfully = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
         
 
 from info.cache import *

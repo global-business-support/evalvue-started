@@ -8,6 +8,9 @@ class response:
         self.document_type = None
         self.listed_type = None
         self.sector_type=None
+        self.country = None
+        self.state = None
+        self.city = None
         self.is_verified=None
         self.is_user_register_successfull=None
         self.error=None
@@ -15,6 +18,7 @@ class response:
         self.is_employee_register_successfull = None
         self.employee_list = None
         self.review_list = None
+        self.organization_list = None
         self.is_employee_mapped_to_organization_successfull = None
         self.is_review_added_successfull = None
         self.is_review_mapped_to_employee_successfull = None
@@ -23,6 +27,8 @@ class response:
         self.password_updated_successFull = None
         self.otp_is_expired = None
         self.incorrect_otp = None
+        self.is_organization_register_successfull = None
+        self.is_organization_mapped = None
 
     def convertToJSON(self):
         res = {}
