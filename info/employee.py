@@ -20,10 +20,10 @@ class employee:
             "aadhar_number": self.aadhar_number
 
         }
-    def convertToJSON(self):
-        emp = {}
+    # def convertToJSON(self):
+    #     emp = {}
         
-        for attr_name, attr_value in vars(self).items():
-            if attr_value is not None:
-                emp[attr_name] = attr_value
-        return emp
+    #     for attr_name, attr_value in vars(self).items():
+    #         if attr_value is not None:
+    #             emp[attr_name] = attr_value
+    #     return emp
