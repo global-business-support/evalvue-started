@@ -8,7 +8,6 @@ from .cache import *  # Adjust the import according to your structure
 class MyAppConfig(AppConfig):
     name = 'info'
     def ready(self):
-        print("satya")
         fetch_sector_type_data_from_db()
         fetch_listed_type_data_from_db()
         fetch_document_type_data_from_db()

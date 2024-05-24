@@ -2,6 +2,9 @@ from evalvue import settings
 import os
 from info import constant
 from .cache import *
+from django.db import connection,IntegrityError,transaction
+from django.template.loader import render_to_string
+from django.core.mail import EmailMessage
 
 def save_image(folder_name,image):
     project_root = settings.BASE_DIR
@@ -11,8 +14,6 @@ def save_image(folder_name,image):
     folder_path = os.path.join(project_root, folder_name)
     folder_db_path = os.path.join(constant.database_root,folder_name)
 
-    print(folder_path)
-
     # Create the folder if it doesn't exist
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
@@ -21,18 +22,10 @@ def save_image(folder_name,image):
     file_path = os.path.join(folder_path, image.name)
     file_db_path = folder_db_path + "/" + image.name
 
-    print(file_path,file_db_path)
-
     with open(file_path, 'wb') as destination:
         for chunk in image.chunks():
             destination.write(chunk)
     return file_db_path
-
-
-
-from django.db import connection,IntegrityError,transaction
-from django.template.loader import render_to_string
-from django.core.mail import EmailMessage
 
 def send_email(to_email,template_name,place_holder):
     try:
