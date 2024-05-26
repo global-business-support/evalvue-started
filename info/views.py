@@ -103,9 +103,7 @@ class VerifyEmailAPIView(APIView):
                 is_verified = 1
                 with connection.cursor() as cursor:
                     
-                    print("hi")
                     cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
-                    print("bye")
                     res.is_email_verified_successfull = True
                     res.email = email
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
