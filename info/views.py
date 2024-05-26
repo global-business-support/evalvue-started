@@ -79,7 +79,7 @@ class CreateUserAPIView(APIView):
                         return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         
         except IntegrityError as e:
-            logger.error('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_user_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -128,6 +128,7 @@ class EmployeeAPIView(APIView):
                 data = request.data
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
+                logger.info(data)
                 res.is_employee_mapped_to_organization_successfull = False
                 
                 with connection.cursor() as cursor:
@@ -156,12 +157,12 @@ class EmployeeAPIView(APIView):
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
             
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_employee_mapped_to_organization_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_employee_mapped_to_organization_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -184,6 +185,7 @@ class CreateEmployeeAPIView(APIView):
                 mobile_number = data.get('mobile_number')
                 designation = data.get('designation')
                 employee_name = first_name + " " + last_name
+                logger.info(data)
                 res.is_employee_register_successfull = True
                 if aadhar_number != confirm_aadhar_number:
                     res.is_employee_register_successfull = False
@@ -230,13 +232,13 @@ class CreateEmployeeAPIView(APIView):
                     return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_employee_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_employee_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -247,8 +249,10 @@ class LoginUserAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
-                email = request.data.get('email')
-                password = request.data.get('password')
+                data = request.data
+                email = data.get('email')
+                password = data.get('password')
+                logger.info(data)
                 res.is_login_successfull = True
                 res.is_user_verified = True
                 if not email or not password:
@@ -280,13 +284,13 @@ class LoginUserAPIView(APIView):
                             return JsonResponse(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST) 
 
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_login_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_login_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -304,6 +308,7 @@ class CreateReviewAPIView(APIView):
                 comment = data.get('comment')
                 image = data.get('image')
                 rating = data.get('rating')
+                logger.info(data)
                 with connection.cursor() as cursor:
                     cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,image,rating])
                     cursor.execute("SELECT max(ReviewId) from Review")
@@ -320,13 +325,13 @@ class CreateReviewAPIView(APIView):
                     return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
                 
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_review_added_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_review_added_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -341,6 +346,7 @@ class ReviewAPIView(APIView):
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
                 employee_id = data.get('employee_id')
+                logger.info(data)
                 res.is_review_mapped_to_employee_successfull = True
 
                 with connection.cursor() as cursor:
@@ -381,12 +387,12 @@ class ReviewAPIView(APIView):
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_review_mapped_to_employee_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_review_mapped_to_employee_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -399,6 +405,7 @@ class ShootOtpAPIView(APIView):
             with transaction.atomic():
                 data = request.data 
                 email = data.get("email")
+                logger.info(data)
                 res.otp_send_successfull = False
                 if not re.match(r'^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$', email):
                     res.otp_send_successfull = False
@@ -418,12 +425,12 @@ class ShootOtpAPIView(APIView):
                                 res.email = email_result[1]
                 return Response(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.otp_send_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.otp_send_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -438,6 +445,7 @@ class VerifyOtpAPIView(APIView):
                 user_id = data.get("user_id")
                 email = data.get("email")
                 otp_number = data.get("otp_number")
+                logger.info(data)
                 res.otp_verified_successfull = False
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT OtpNumber,CreatedOn from OTP where email = %s ORDER BY CreatedOn desc",[email])
@@ -461,12 +469,12 @@ class VerifyOtpAPIView(APIView):
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.otp_verified_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.otp_verified_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -481,6 +489,7 @@ class UpdatePasswordAPIView(APIView):
                 data = request.data 
                 user_id = data.get("user_id")
                 password = data.get("password")
+                logger.info(data)
                 res.password_updated_successFull = False
 
                 if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$', password):
@@ -493,19 +502,16 @@ class UpdatePasswordAPIView(APIView):
                         res.password_updated_successFull = True
                 return Response(res.convertToJSON(), status = status.HTTP_200_OK)
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.password_updated_successFull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.password_updated_successFull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
-
-
 
 
 
@@ -517,6 +523,7 @@ class OrganizationAPIView(APIView):
         try:
             data = request.data
             user_id = data.get('user_id')
+            logger.info(data)
             res = response()
             res.user_id = user_id
             with connection.cursor() as cursor:
@@ -554,12 +561,12 @@ class OrganizationAPIView(APIView):
 
 
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -585,6 +592,7 @@ class CreateOrganizationAPIview(APIView):
                 pincode = data.get("pincode")
                 number_of_employee = data.get("number_of_employee")
                 document_file = data.get("document_file")
+                logger.info(data)
                 with connection.cursor() as cursor:
                     is_valid = validate_organization(document_number,res)
                     if is_valid:
@@ -604,23 +612,23 @@ class CreateOrganizationAPIview(APIView):
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_organization_created_successfully = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_organization_created_successfully = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
 class AddOrganizationAPIview(APIView):
     @csrf_exempt
     def post(self, request):
         data = request.data
         user_id = data.get('user_id')
+        logger.info(data)
         res = response()
         res.user_id = user_id
         try:
@@ -629,28 +637,15 @@ class AddOrganizationAPIview(APIView):
                 return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_organization_created_successfully = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            print('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_organization_created_successfully = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
-
-
-        
-
-from info.cache import *
-
-class MyDataView(APIView):
-    def get(self, request):
-        data = get_cached_review_data()
-        if data:
-            return Response(data)
-        return Response({'error': 'Data not found'}, status=status.HTTP_404_NOT_FOUND)
         
