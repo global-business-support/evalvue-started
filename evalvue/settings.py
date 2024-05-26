@@ -102,10 +102,10 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'evalvue_db',
-        'USER': 'admin',
-        'PASSWORD': 'welcome4U',
-        'HOST': 'evalvue-database-db.ctq2umegsklt.ap-south-1.rds.amazonaws.com',  # Usually 'localhost' or IP address
+        'NAME': 'testdb',
+        'USER': 'SA',
+        'PASSWORD': 'welcome4U@',
+        'HOST': '93.127.185.167',  # Usually 'localhost' or IP address
         'PORT': '1433',  # Usually '1433' for MSSQL
         # 'HOST': 'DESKTOP-CD7S690\SQLEXPRESS',
         

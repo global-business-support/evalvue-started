@@ -43,6 +43,7 @@ class CreateUserAPIView(APIView):
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 password = data.get('password')
+                logger.info(data)
                 res.is_user_register_successfull = True
                 if not re.match(r'(?=.{3,25}$)[a-zA-Z]+(?:\s[a-zA-Z]+)?(?:\s[a-zA-Z]+)?$',name):
                     res.is_user_register_successfull = False
@@ -68,8 +69,8 @@ class CreateUserAPIView(APIView):
                         res.error = 'User Alreary Exists with this Email and Mobile Number'
                     else:
                         password = hash_password(password, salt)
-                        cursor.execute("INSERT INTO [User] (Name, Email, MobileNumber, Password, CreatedOn) VALUES (%s, %s, %s, %s,GETDATE())",
-                                    [name, email, mobile_number, password]) 
+                        cursor.execute("INSERT INTO [User] (Name, Email, MobileNumber, Password, CreatedOn,IsVerified) VALUES (%s, %s, %s, %s,GETDATE(),%s)",
+                                    [name, email, mobile_number, password,0]) 
                         
                     
                     if not res.is_user_register_successfull:
@@ -78,16 +79,48 @@ class CreateUserAPIView(APIView):
                         return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         
         except IntegrityError as e:
-            print('Database integrity error: {}'.format(str(e)))
+            logger.error('Database integrity error: {}'.format(str(e)))
             res.is_user_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
-            logger.error('An unexpected error occurred: {}'.format(str(e)))
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.is_user_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class VerifyEmailAPIView(APIView):
+    @csrf_exempt
+    def post(self,request):
+        res = response()
+        try:
+            with transaction.atomic():
+                data = request.data
+                email = data.get('email')
+                logger.info(data)
+                res.is_email_verified_successfull = False
+                is_verified = 1
+                with connection.cursor() as cursor:
+                    
+                    print("hi")
+                    cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
+                    print("bye")
+                    res.is_email_verified_successfull = True
+                    res.email = email
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_email_verified_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_email_verified_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class EmployeeAPIView(APIView):
     @csrf_exempt
     def post(emp,request):
@@ -219,19 +252,25 @@ class LoginUserAPIView(APIView):
                 email = request.data.get('email')
                 password = request.data.get('password')
                 res.is_login_successfull = True
+                res.is_user_verified = True
                 if not email or not password:
                     res.is_login_successfull = False
                     res.error = 'Email and password are required'
                 else:
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT UserId, Password FROM [User] WHERE Email = %s", [email])
+                        cursor.execute("SELECT UserId, Password,IsVerified FROM [User] WHERE Email = %s", [email])
                         user_details = cursor.fetchone()
                         if user_details :
                             user_id = user_details[0]
                             stored_password = user_details[1]
+                            is_verified = user_details[2]
                             ok = verify_password(stored_password, password, salt)
-                            if ok:
+                            if ok and is_verified == 1:
                                 res.user_id = user_id
+                                return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+                            elif ok and is_verified == 0:
+                                res.is_user_verified = False
+                                res.is_login_successfull = False
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
                             else:
                                 res.is_login_successfull = False
@@ -354,7 +393,7 @@ class ReviewAPIView(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class ForgotPasswordAPIView(APIView):
+class ShootOtpAPIView(APIView):
     @csrf_exempt
     def post(self,request):
         res = response()
@@ -450,6 +489,7 @@ class UpdatePasswordAPIView(APIView):
                     res.password_updated_successFull = False
                     res.error = 'Choose strong password'
                 else:
+                    password = hash_password(password,salt)
                     with connection.cursor() as cursor:
                         cursor.execute("UPDATE [User] SET Password = %s, ModifiedOn = GETDATE() where UserId = %s",[password,user_id])
                         res.password_updated_successFull = True
@@ -464,6 +504,10 @@ class UpdatePasswordAPIView(APIView):
             res.password_updated_successFull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
 
 
 
