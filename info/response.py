@@ -29,6 +29,9 @@ class response:
         self.incorrect_otp = None
         self.is_organization_register_successfull = None
         self.is_organization_mapped = None
+        self.is_organization_created_successfully = None
+        self.is_email_verified_successfull = None
+        self.is_user_verified = None
 
     def convertToJSON(self):
         res = {}
