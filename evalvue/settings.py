@@ -98,42 +98,28 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
         'NAME': 'testdb',
         'USER': 'SA',
         'PASSWORD': 'welcome4U@',
-        'HOST': '93.127.185.167',  # Usually 'localhost' or IP address
-        'PORT': '1433',  # Usually '1433' for MSSQL
-        # 'HOST': 'DESKTOP-CD7S690\SQLEXPRESS',
-        
-        
+        'HOST': '93.127.185.167',
+        'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
             'extra_params': 'TrustServerCertificate=yes',
         },
     }
 }
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django_redis.cache.RedisCache',
-#         'LOCATION': 'redis://127.0.0.1:6379/1',
-#         'OPTIONS': {
-#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-#         }
-#     }
-# }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'jaydeepkarode5656@gmail.com'  # Your Gmail address
-EMAIL_HOST_PASSWORD = 'bojayjrzsafkihxa'
-# EMAIL_HOST_USER = 'deepakshahwal999@gmail.com'
-# EMAIL_HOST_PASSWORD = 'ims zrn otb ujun icq'
+EMAIL_HOST = 'smtp.hostinger.com'  # Hostinger's SMTP server
+EMAIL_PORT = 587  # Typically 587 for TLS or 465 for SSL
+EMAIL_USE_TLS = True  # Use TLS for secure connection
+EMAIL_HOST_USER = 'noreply@evalvue.com'  # Your Hostinger domain email
+EMAIL_HOST_PASSWORD = 'welcome4U@'  # Your Hostinger email password
+DEFAULT_FROM_EMAIL = 'EVALVUE <noreply@evalvue.com>'  # Default from email address
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

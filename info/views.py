@@ -30,6 +30,7 @@ from .organization import *
 from .response import *
 from .review import *
 import logging
+from .cache import *
 logger = logging.getLogger('info')
 
 class CreateUserAPIView(APIView):
@@ -90,34 +91,6 @@ class CreateUserAPIView(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class VerifyEmailAPIView(APIView):
-    @csrf_exempt
-    def post(self,request):
-        res = response()
-        try:
-            with transaction.atomic():
-                data = request.data
-                email = data.get('email')
-                logger.info(data)
-                res.is_email_verified_successfull = False
-                is_verified = 1
-                with connection.cursor() as cursor:
-                    
-                    cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
-                    res.is_email_verified_successfull = True
-                    res.email = email
-                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
-        except IntegrityError as e:
-            logger.exception('Database integrity error: {}'.format(str(e)))
-            res.is_email_verified_successfull = False
-            res.error = generic_error_message
-            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            logger.exception('An unexpected error occurred: {}'.format(str(e)))
-            res.is_email_verified_successfull = False
-            res.error = generic_error_message
-            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class EmployeeAPIView(APIView):
     @csrf_exempt
@@ -309,6 +282,7 @@ class CreateReviewAPIView(APIView):
                 image = data.get('image')
                 rating = data.get('rating')
                 logger.info(data)
+                image = save_image(review_image_path,image)
                 with connection.cursor() as cursor:
                     cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,image,rating])
                     cursor.execute("SELECT max(ReviewId) from Review")
@@ -363,7 +337,7 @@ class ReviewAPIView(APIView):
                     emp.designation = employee_details[6]
                     employee_list.append(emp.to_dict())
 
-                    cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s",[employee_id])
+                    cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s and OrganizationId = %s",[employee_id,organization_id])
                     review_id_results = cursor.fetchall()
                     if review_id_results:
                         review_list = []
@@ -379,11 +353,13 @@ class ReviewAPIView(APIView):
                                 rev.rating = rev_rating
                                 review_list.append(rev.to_dict())
                         res.is_review_mapped_to_employee_successfull = True
-                        res.employee_list = employee_list
                         res.review_list = review_list
                         res.employee_id = employee_id
                         res.user_id = organization_id
                         res.organization_id = organization_id
+                    else:
+                        res.is_review_mapped_to_employee_successfull = False
+                    res.employee_list = employee_list
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
         except IntegrityError as e:
@@ -465,6 +441,9 @@ class VerifyOtpAPIView(APIView):
                             res.user_id = user_id
                         elif otp_result[0] == otp_number:
                             res.otp_verified_successfull = True
+                            cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
+                            res.is_email_verified_successfull = True
+                            res.email = email
                             res.user_id = user_id
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
@@ -512,11 +491,6 @@ class UpdatePasswordAPIView(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
-
-
-
-
 class OrganizationAPIView(APIView):
     @csrf_exempt
     def post(self,request):
@@ -558,8 +532,6 @@ class OrganizationAPIView(APIView):
                     res.is_organization_mapped = False
                     populateAddOrganizationData(res)
                     return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
-
-
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.error = generic_error_message
@@ -648,4 +620,49 @@ class AddOrganizationAPIview(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+class DashboardFeedAPIview(APIView):
+    @csrf_exempt
+    def post(self,request):
+        try:
+            data = request.data
+            user_id = data.get('user_id')
+            logger.info(data)
+            res = response()
+            res.user_id = user_id
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC;")
+                rows = cursor.fetchall()
+                reviews = []
+                if row:
+                    for row in rows:
+                        rev = review()
+                        rev.review_id = row[0]
+                        rev.comment = row[1]
+                        rev.rating = row[2]
+                        rev.created_on = row[3]
+                        rev.organization_id = row[4]
+                        rev.organization_name = row[5]
+                        rev.employee_id = row[6]
+                        rev.employee_name = row[7]
+                        reviews.append(rev.to_dict())
+                    res.dashboard_list = reviews
+                    res.is_review_mapped = True
+                else:
+                    res.is_review_mapped = False
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_review_mapped = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_review_mapped = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+    
+                
+

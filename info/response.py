@@ -19,6 +19,7 @@ class response:
         self.employee_list = None
         self.review_list = None
         self.organization_list = None
+        self.dashboard_list = None
         self.is_employee_mapped_to_organization_successfull = None
         self.is_review_added_successfull = None
         self.is_review_mapped_to_employee_successfull = None
@@ -32,13 +33,11 @@ class response:
         self.is_organization_created_successfully = None
         self.is_email_verified_successfull = None
         self.is_user_verified = None
+        self.is_review_mapped = None
 
     def convertToJSON(self):
         res = {}
-        
         for attr_name, attr_value in vars(self).items():
             if attr_value is not None:
                 res[attr_name] = attr_value
         return res
-        # return vars(self)
-
