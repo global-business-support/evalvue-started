@@ -5,15 +5,13 @@ class review:
         self.comment = None
         self.image = None
         self.rating = None
-
+        self.created_on = None
+        self.organization_id = None
+        self.organization_name = None
+        self.employee_id = None
+        self.employee_name = None
+        self.designation = None
     def to_dict(self):
-        return {
-            "review_id": self.review_id,
-            "comment": self.comment,
-            "image": self.image,
-            "rating": self.rating
-        }
-    def convertToJSON(self):
         rev = {}
         
         for attr_name, attr_value in vars(self).items():
