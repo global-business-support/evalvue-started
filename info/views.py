@@ -22,13 +22,14 @@ import re
 import random
 from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
-from info import organization, review
+from info import aadhar, organization, review
 from info.constant import *
 from info.utility import hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password
 from .employee import *
 from .organization import *
 from .response import *
 from .review import *
+from . aadhar import *
 import logging
 from .cache import *
 logger = logging.getLogger('info')
@@ -282,7 +283,8 @@ class CreateReviewAPIView(APIView):
                 image = data.get('image')
                 rating = data.get('rating')
                 logger.info(data)
-                image = save_image(review_image_path,image)
+                if image:
+                    image = save_image(review_image_path,image)
                 with connection.cursor() as cursor:
                     cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,image,rating])
                     cursor.execute("SELECT max(ReviewId) from Review")
@@ -510,7 +512,6 @@ class OrganizationAPIView(APIView):
                         organization_id_list.append(str(organization_detail[0]))
                     strr = ','.join(organization_id_list)
                     cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({})".format(strr))
-                    
                     organization_detail_list_by_id = cursor.fetchall()
                     organization_detail_list = []
                     for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
@@ -662,6 +663,54 @@ class DashboardFeedAPIview(APIView):
             res.is_review_mapped = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SearchByAadharAPIview(APIView):
+    @csrf_exempt
+    def post(self,request):
+        try:
+            data = request.data
+            aadhar_number = data.get('aadhar_number')
+            logger.info(data)
+            res = response()
+            aadhar_number = '%'+ aadhar_number + '%'
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.organizationId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s",[aadhar_number])
+                rows = cursor.fetchall()
+                print(rows)
+                employees = []
+                if rows:
+                    for row in rows:
+                        adh = aadhar()
+                        adh.employee_id = row[0]
+                        adh.employee_name = row[1]
+                        adh.email = row[2]
+                        adh.mobile_number = row[3]
+                        adh.employee_image = row[4]
+                        adh.aadhar_number = row[5]
+                        adh.created_on = row[6]
+                        adh.designation = row[7]
+                        adh.organization_id = row[8]
+                        adh.organization_name = row[9]
+                        adh.organization_image = row[10]
+                        employees.append(adh.to_dict())
+                    res.employees_list_by_aadhar = employees
+                    res.employees_mapped_to_aadhar = True
+                else:
+                    res.employees_mapped_to_aadhar = False
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.employees_mapped_to_aadhar = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.employees_mapped_to_aadhar = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
         
     
                 
