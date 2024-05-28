@@ -512,7 +512,6 @@ class OrganizationAPIView(APIView):
                         organization_id_list.append(str(organization_detail[0]))
                     strr = ','.join(organization_id_list)
                     cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({})".format(strr))
-                    
                     organization_detail_list_by_id = cursor.fetchall()
                     organization_detail_list = []
                     for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
