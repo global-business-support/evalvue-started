@@ -6,7 +6,7 @@ from django.db import connection,IntegrityError,transaction
 from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
 import hashlib
-
+import uuid
 
 def save_image(folder_name,image):
     project_root = settings.BASE_DIR
@@ -21,8 +21,9 @@ def save_image(folder_name,image):
         os.makedirs(folder_path)
 
     # Construct the full path for the file
-    file_path = os.path.join(folder_path, image.name)
-    file_db_path = folder_db_path + "/" + image.name
+    unique_id = uuid.uuid4()
+    file_path = os.path.join(folder_path,str(unique_id) + image.name)
+    file_db_path = folder_db_path + "/" + str(unique_id) + image.name
 
     with open(file_path, 'wb') as destination:
         for chunk in image.chunks():
