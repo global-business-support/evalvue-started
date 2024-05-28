@@ -11,6 +11,7 @@ class organization:
         self.city_name = None
         self.area = None
         self.pincode = None
+        self.organization_verified = None
 
     def to_dict(self):
         organization = {}

@@ -509,8 +509,10 @@ class OrganizationAPIView(APIView):
                 if organization_details_by_user_id:
                     res.is_organization_mapped = True
                     organization_id_list = []
+                    organization_verified_dict = {}
                     for organization_detail in organization_details_by_user_id:
                         organization_id_list.append(str(organization_detail[0]))
+                        organization_verified_dict[organization_detail[0]] = organization_detail[1]
                     strr = ','.join(organization_id_list)
                     cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({})".format(strr))
                     organization_detail_list_by_id = cursor.fetchall()
@@ -527,6 +529,7 @@ class OrganizationAPIView(APIView):
                         org.city_name = city_data[city_id]['Name']
                         org.area = area
                         org.pincode = pincode
+                        org.organization_verified = organization_verified_dict[id]
                         organization_detail_list.append(org.to_dict())
                     res.organization_list = organization_detail_list
                     return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
