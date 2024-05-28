@@ -34,6 +34,8 @@ class response:
         self.is_email_verified_successfull = None
         self.is_user_verified = None
         self.is_review_mapped = None
+        self.employees_list_by_aadhar = None
+        self.employees_mapped_to_aadhar = None
 
     def convertToJSON(self):
         res = {}
