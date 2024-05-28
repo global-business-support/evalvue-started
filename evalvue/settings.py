@@ -69,10 +69,10 @@ REST_FRAMEWORK = {
     'DEFAULT_CONTENT_TYPE': 'application/json',
 }
 
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:5173",  # Adjust this to your React/Vite application's domain
-#     # Add more origins if needed
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Adjust this to your React/Vite application's domain
+    # Add more origins if needed
+]
 
 
 ROOT_URLCONF = 'evalvue.urls'
