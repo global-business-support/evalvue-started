@@ -11,6 +11,8 @@ class review:
         self.employee_id = None
         self.employee_name = None
         self.designation = None
+        self.organization_image = None
+        self.employee_image = None
     def to_dict(self):
         rev = {}
         

@@ -1,6 +1,7 @@
 from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
+import pytz
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -631,20 +632,28 @@ class DashboardFeedAPIview(APIView):
             res = response()
             res.user_id = user_id
             with connection.cursor() as cursor:
-                cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC;")
+                cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation,org.Image,emp.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC")
                 rows = cursor.fetchall()
                 reviews = []
-                if row:
+                if rows:
                     for row in rows:
+                        sql_server_time = row[3]
+                        ist_timezone = pytz.timezone('Asia/Kolkata')
+                        sql_server_time_utc = sql_server_time.replace(tzinfo=pytz.utc)
+                        ist_time = sql_server_time_utc.astimezone(ist_timezone)
+                        formatted_time = ist_time.strftime("%d %B at %I:%M %p")
                         rev = review()
                         rev.review_id = row[0]
                         rev.comment = row[1]
                         rev.rating = row[2]
-                        rev.created_on = row[3]
+                        rev.created_on = formatted_time
                         rev.organization_id = row[4]
                         rev.organization_name = row[5]
                         rev.employee_id = row[6]
                         rev.employee_name = row[7]
+                        rev.designation = row[8]
+                        rev.organization_image = row[9]
+                        rev.employee_image = row[10]
                         reviews.append(rev.to_dict())
                     res.dashboard_list = reviews
                     res.is_review_mapped = True
