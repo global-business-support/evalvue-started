@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
 from info import aadhar, organization, review
 from info.constant import *
-from info.utility import hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password
 from .employee import *
 from .organization import *
 from .response import *
@@ -33,6 +33,9 @@ from .review import *
 from . aadhar import *
 import logging
 from .cache import *
+import jwt
+from rest_framework_simplejwt.tokens import RefreshToken
+
 logger = logging.getLogger('info')
 
 class CreateUserAPIView(APIView):
@@ -107,7 +110,7 @@ class EmployeeAPIView(APIView):
                 res.is_employee_mapped_to_organization_successfull = False
                 
                 with connection.cursor() as cursor:
-                    cursor.execute("select EmployeeId from EmployeeOrganizationMapping where OrganizationId = %s",[organization_id])
+                    cursor.execute("select EmployeeId from EmployeeOrganizationMapping where OrganizationId = %s ORDER BY CreatedOn DESC",[organization_id])
                     employee_id_results = cursor.fetchall()
                     if employee_id_results:
                         employee_list = []
@@ -162,17 +165,26 @@ class CreateEmployeeAPIView(APIView):
                 employee_name = first_name + " " + last_name
                 logger.info(data)
                 res.is_employee_register_successfull = True
-                if aadhar_number != confirm_aadhar_number:
+                if not re.match(r'(?=.{3,25}$)[a-zA-Z]+(?:\s[a-zA-Z]+)?(?:\s[a-zA-Z]+)?$',employee_name):
+                    res.is_employee_register_successfull = False
+                    res.error = 'Invalid Name'
+                elif not re.match(r"^\d{12}$",aadhar_number):
+                    res.is_employee_register_successfull = False
+                    res.error = 'Invalid aadhar'
+                elif aadhar_number != confirm_aadhar_number:
                     res.is_employee_register_successfull = False
                     res.error = 'Aadhar number not matched'
                 elif not re.match( r"^(?:(?:[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*)|(?:\".+\"))@(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?$",email):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid email'
-                elif not re.match(r"^\d{12}$",aadhar_number):
+                elif not re.match(r'^\d{10}$', mobile_number):
                     res.is_employee_register_successfull = False
-                    res.error = 'Invalid aadhar'
+                    res.error = 'Invalid mobile number'
+                
                 if(not res.is_employee_register_successfull):
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                res.user_id = user_id
+                res.organization_id = organization_id
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT EmployeeId, Name FROM Employee where AadharNumber = %s",[aadhar_number])
                     employee_details_by_aadhar_number = cursor.fetchone()
@@ -196,15 +208,17 @@ class CreateEmployeeAPIView(APIView):
                             cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_by_aadhar_number,organization_id,1])
                             res.is_employee_register_successfull = True
                     else:
-                        employee_image = save_image(employee_image_path,employee_image)
+                        is_image_valid = validate_image(employee_image,res)
+                        if is_image_valid:
+                            employee_image = save_image(employee_image_path,employee_image)
+                        else:
+                            return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         cursor.execute("INSERT INTO Employee (Name, Email, MobileNumber, Image, AadharNumber, Designation, CreatedOn) VALUES (%s, %s, %s, %s, %s,%s, GETDATE())",[employee_name, email, mobile_number, employee_image, aadhar_number, designation])
                         cursor.execute("SELECT EmployeeId FROM Employee where AadharNumber = %s",[aadhar_number])
                         employee_id_for_organization_mapping = cursor.fetchone()[0]
                         cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_for_organization_mapping,organization_id,1])
                         res.is_employee_register_successfull = True
-                    res.user_id = user_id
-                    res.organization_id = organization_id
-                    return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+                        return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -340,25 +354,26 @@ class ReviewAPIView(APIView):
                     emp.designation = employee_details[6]
                     employee_list.append(emp.to_dict())
 
-                    cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s and OrganizationId = %s",[employee_id,organization_id])
+                    cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s and OrganizationId = %s ORDER BY CreatedOn DESC",[employee_id,organization_id])
                     review_id_results = cursor.fetchall()
                     if review_id_results:
                         review_list = []
                         for review_id_result in review_id_results:
                             review_id = review_id_result[0]
-                            cursor.execute("SELECT ReviewId, Comment, Image, Rating from Review where ReviewId = %s",[review_id])
+                            cursor.execute("SELECT ReviewId, Comment, Image, Rating, CreatedOn from Review where ReviewId = %s",[review_id])
                             reviews_details = cursor.fetchall()
-                            for rev_id, rev_comment, rev_image, rev_rating in reviews_details:
+                            for rev_id, rev_comment, rev_image, rev_rating,rev_created_on in reviews_details:
                                 rev = review()
                                 rev.review_id = rev_id
                                 rev.comment = rev_comment
                                 rev.image = rev_image
                                 rev.rating = rev_rating
+                                rev.created_on = convert_to_ist_time(rev_created_on)
                                 review_list.append(rev.to_dict())
                         res.is_review_mapped_to_employee_successfull = True
                         res.review_list = review_list
                         res.employee_id = employee_id
-                        res.user_id = organization_id
+                        res.user_id = user_id
                         res.organization_id = organization_id
                     else:
                         res.is_review_mapped_to_employee_successfull = False
@@ -427,7 +442,7 @@ class VerifyOtpAPIView(APIView):
                 logger.info(data)
                 res.otp_verified_successfull = False
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT OtpNumber,CreatedOn from OTP where email = %s ORDER BY CreatedOn desc",[email])
+                    cursor.execute("SELECT OtpNumber,CreatedOn from OTP where email = %s and Is_Verified = %s ORDER BY CreatedOn desc",[email,0])
                     otp_result = cursor.fetchone()
                     if otp_result:
                         cursor.execute("SELECT GETDATE()")
@@ -504,7 +519,7 @@ class OrganizationAPIView(APIView):
             res = response()
             res.user_id = user_id
             with connection.cursor() as cursor:
-                cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s",[user_id])
+                cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
                 organization_details_by_user_id = cursor.fetchall()
                 if organization_details_by_user_id:
                     res.is_organization_mapped = True
@@ -514,7 +529,7 @@ class OrganizationAPIView(APIView):
                         organization_id_list.append(str(organization_detail[0]))
                         organization_verified_dict[organization_detail[0]] = organization_detail[1]
                     strr = ','.join(organization_id_list)
-                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({})".format(strr))
+                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
                     organization_detail_list_by_id = cursor.fetchall()
                     organization_detail_list = []
                     for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
@@ -573,7 +588,11 @@ class CreateOrganizationAPIview(APIView):
                 with connection.cursor() as cursor:
                     is_valid = validate_organization(document_number,res)
                     if is_valid:
-                        organization_image = save_image(organization_image_path,organization_image)
+                        is_image_valid = validate_image(organization_image,res)
+                        if is_image_valid:
+                            organization_image = save_image(organization_image_path,organization_image)
+                        else:
+                            return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         document_file = save_image(document_image_path,document_file)
                         cursor.execute("Insert into Organization(Name,Image,DocumentTypeId,DocumentNumber,GSTIN,SectorId,ListedId,CountryId,StateId,CityId,Area,PinCode,DocumentFile,NumberOfEmployee,CreatedOn) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,GETDATE())",
                                        [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
@@ -641,10 +660,7 @@ class DashboardFeedAPIview(APIView):
                 if rows:
                     for row in rows:
                         sql_server_time = row[3]
-                        ist_timezone = pytz.timezone('Asia/Kolkata')
-                        sql_server_time_utc = sql_server_time.replace(tzinfo=pytz.utc)
-                        ist_time = sql_server_time_utc.astimezone(ist_timezone)
-                        formatted_time = ist_time.strftime("%d %B at %I:%M %p")
+                        formatted_time = convert_to_ist_time(sql_server_time)
                         rev = review()
                         rev.review_id = row[0]
                         rev.comment = row[1]
