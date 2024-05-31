@@ -33,9 +33,6 @@ from .review import *
 from . aadhar import *
 import logging
 from .cache import *
-import jwt
-from rest_framework_simplejwt.tokens import RefreshToken
-
 logger = logging.getLogger('info')
 
 class CreateUserAPIView(APIView):
