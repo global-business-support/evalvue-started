@@ -7,6 +7,10 @@ from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
 import hashlib
 import uuid
+import logging
+import pytz
+
+logger = logging.getLogger('info')
 
 def save_image(folder_name,image):
     project_root = settings.BASE_DIR
@@ -48,10 +52,10 @@ def send_email(to_email,template_name,place_holder):
                     email.send(fail_silently=False)
                     return True
     except IntegrityError as e:
-        print('Database integrity error: {}'.format(str(e)))
+        logger.exception('Database integrity error: {}'.format(str(e)))
         return False
     except Exception as e:
-        print('Database integrity error: {}'.format(str(e)))
+        logger.exception('An unexpected error occurred: {}'.format(str(e)))
         return False
 
 def hash_password(password, salt):
@@ -75,11 +79,28 @@ def validate_organization(document_number,res):
                 else:
                     return True
     except IntegrityError as e:
-        print('Database integrity error: {}'.format(str(e)))
+        logger.exception('Database integrity error: {}'.format(str(e)))
         return False
     except Exception as e:
-        print('Database integrity error: {}'.format(str(e)))
+        logger.exception('An unexpected error occurred: {}'.format(str(e)))
         return False
+    
+ALLOWED_EXTENSIONS = {'.png', '.jpeg', '.jpg'}
+def validate_image(organization_image,res):
+    try:
+        file_extension = os.path.splitext(organization_image.name)[1].lower()
+        print(file_extension)
+        if file_extension not in ALLOWED_EXTENSIONS:
+            res.is_image_validate = True
+            res.error = constant.image_validation_error
+            return False
+        else:
+            return True
+    except Exception as e:
+        logger.exception('An unexpected error occurred: {}'.format(str(e)))
+        return False
+        
+
 
 def populateAddOrganizationData(res):
     res.document_type = document_type_data
@@ -88,3 +109,10 @@ def populateAddOrganizationData(res):
     res.country = country_data
     res.state = state_data
     res.city = city_data
+
+def convert_to_ist_time(sql_server_time):
+    ist_timezone = pytz.timezone('Asia/Kolkata')
+    sql_server_time_utc = sql_server_time.replace(tzinfo=pytz.utc)
+    ist_time = sql_server_time_utc.astimezone(ist_timezone)
+    formatted_time = ist_time.strftime("%d %B at %I:%M %p")
+    return formatted_time
