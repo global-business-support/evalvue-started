@@ -1,6 +1,7 @@
 from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
+import jwt
 import pytz
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -23,9 +24,10 @@ import re
 import random
 from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
+from evalvue import settings
 from info import aadhar, organization, review
 from info.constant import *
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password
+from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password
 from .employee import *
 from .organization import *
 from .response import *
@@ -33,6 +35,11 @@ from .review import *
 from . aadhar import *
 import logging
 from .cache import *
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import IsAuthenticated
+
+
 logger = logging.getLogger('info')
 
 class CreateUserAPIView(APIView):
@@ -215,7 +222,7 @@ class CreateEmployeeAPIView(APIView):
                         employee_id_for_organization_mapping = cursor.fetchone()[0]
                         cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_for_organization_mapping,organization_id,1])
                         res.is_employee_register_successfull = True
-                        return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+                    return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -239,10 +246,9 @@ class LoginUserAPIView(APIView):
                 email = data.get('email')
                 password = data.get('password')
                 logger.info(data)
-                res.is_login_successfull = True
-                res.is_user_verified = True
+                res.is_login_successfull = False
+                res.is_user_verified = False
                 if not email or not password:
-                    res.is_login_successfull = False
                     res.error = 'Email and password are required'
                 else:
                     with connection.cursor() as cursor:
@@ -254,18 +260,24 @@ class LoginUserAPIView(APIView):
                             is_verified = user_details[2]
                             ok = verify_password(stored_password, password, salt)
                             if ok and is_verified == 1:
+                                user_data = CustomObject(user_id,email)
+
+                                refresh = RefreshToken.for_user(user_data)
+                                access_token = refresh.access_token
+                                # token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+
+                                res.refresh  = str(refresh)
+                                res.access = str(access_token)
                                 res.user_id = user_id
+                                res.is_user_verified = True
+                                res.is_login_successfull = True
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
                             elif ok and is_verified == 0:
-                                res.is_user_verified = False
-                                res.is_login_successfull = False
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
                             else:
-                                res.is_login_successfull = False
                                 res.error = 'Inavalid credentials'
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST) 
                         else:
-                            res.is_login_successfull = False
                             res.error = 'Inavalid credentials'
                             return JsonResponse(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST) 
 
@@ -282,11 +294,14 @@ class LoginUserAPIView(APIView):
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class CreateReviewAPIView(APIView):
+
+    # permission_classes = [IsAuthenticated]
     @csrf_exempt
     def post(self,request):
         res = response()
         try:
             with transaction.atomic():
+                user_idd = getattr(request, 'user_id', None)
                 data = request.data 
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
@@ -295,6 +310,7 @@ class CreateReviewAPIView(APIView):
                 image = data.get('image')
                 rating = data.get('rating')
                 logger.info(data)
+                print(user_idd)
                 if image:
                     image = save_image(review_image_path,image)
                 with connection.cursor() as cursor:

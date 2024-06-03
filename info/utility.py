@@ -74,7 +74,7 @@ def validate_organization(document_number,res):
                 result = cursor.fetchone()
                 if result:
                     res.is_organization_register_successfull = False
-                    res.error = constant.organization_found_document_number.format(result[1],document_number)
+                    res.error = constant.organization_found_document_number.format(document_number)
                     return False
                 else:
                     return True
@@ -116,3 +116,8 @@ def convert_to_ist_time(sql_server_time):
     ist_time = sql_server_time_utc.astimezone(ist_timezone)
     formatted_time = ist_time.strftime("%d %B at %I:%M %p")
     return formatted_time
+
+class CustomObject:
+    def __init__(self, user_id, email):
+        self.id = user_id
+        self.email = email
