@@ -74,7 +74,7 @@ def validate_organization(document_number,res):
                 result = cursor.fetchone()
                 if result:
                     res.is_organization_register_successfull = False
-                    res.error = constant.organization_found_document_number.format(result[1],document_number)
+                    res.error = constant.organization_found_document_number.format(document_number)
                     return False
                 else:
                     return True
@@ -86,13 +86,25 @@ def validate_organization(document_number,res):
         return False
     
 ALLOWED_EXTENSIONS = {'.png', '.jpeg', '.jpg'}
-def validate_image(organization_image,res):
+def validate_file_extension(image,res):
     try:
-        file_extension = os.path.splitext(organization_image.name)[1].lower()
-        print(file_extension)
+        file_extension = os.path.splitext(image.name)[1].lower()
         if file_extension not in ALLOWED_EXTENSIONS:
             res.is_image_validate = True
-            res.error = constant.image_validation_error
+            res.error = constant.file_validation_extension_error
+            return False
+        else:
+            return True
+    except Exception as e:
+        logger.exception('An unexpected error occurred: {}'.format(str(e)))
+        return False
+
+def validate_file_size(image,res):
+    try:
+        file_size = 1024 * 1024 * 2
+        if image.size > file_size:
+            res.is_image_validate = True
+            res.error = constant.file_validation_size_error
             return False
         else:
             return True
@@ -116,3 +128,8 @@ def convert_to_ist_time(sql_server_time):
     ist_time = sql_server_time_utc.astimezone(ist_timezone)
     formatted_time = ist_time.strftime("%d %B at %I:%M %p")
     return formatted_time
+
+class CustomObject:
+    def __init__(self, user_id, email):
+        self.id = user_id
+        self.email = email

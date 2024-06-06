@@ -36,6 +36,7 @@ class response:
         self.is_review_mapped = None
         self.employees_list_by_aadhar = None
         self.employees_mapped_to_aadhar = None
+        self.refresh = None
 
     def convertToJSON(self):
         res = {}

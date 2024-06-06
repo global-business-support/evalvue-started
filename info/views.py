@@ -1,6 +1,7 @@
 from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
+import jwt
 import pytz
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -23,9 +24,11 @@ import re
 import random
 from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
+from evalvue import settings
 from info import aadhar, organization, review
+from info.common_regex import validate_aadhar_number, validate_comment, validate_email, validate_mobile_number, validate_name, validate_otp, validate_password
 from info.constant import *
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password
+from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_file_extension, validate_file_size, validate_organization, verify_password
 from .employee import *
 from .organization import *
 from .response import *
@@ -33,6 +36,11 @@ from .review import *
 from . aadhar import *
 import logging
 from .cache import *
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.permissions import IsAuthenticated
+
+
 logger = logging.getLogger('info')
 
 class CreateUserAPIView(APIView):
@@ -48,16 +56,16 @@ class CreateUserAPIView(APIView):
                 password = data.get('password')
                 logger.info(data)
                 res.is_user_register_successfull = True
-                if not re.match(r'(?=.{3,25}$)[a-zA-Z]+(?:\s[a-zA-Z]+)?(?:\s[a-zA-Z]+)?$',name):
+                if not validate_name(name):
                     res.is_user_register_successfull = False
                     res.error = 'Invalid Name'
-                elif not re.match(r'^\d{10}$', mobile_number):
+                elif not validate_mobile_number(mobile_number):
                     res.is_user_register_successfull = False
                     res.error = 'Invalid mobile number'
-                elif not re.match(r'^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$', email):
+                elif not  validate_email(email):
                     res.is_user_register_successfull = False
                     res.error = 'Invalid email'
-                elif not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$', password):
+                elif not validate_password(password):
                     res.is_user_register_successfull = False
                     res.error = 'Invalid password'
 
@@ -161,24 +169,23 @@ class CreateEmployeeAPIView(APIView):
                 designation = data.get('designation')
                 employee_name = first_name + " " + last_name
                 logger.info(data)
-                res.is_employee_register_successfull = True
-                if not re.match(r'(?=.{3,25}$)[a-zA-Z]+(?:\s[a-zA-Z]+)?(?:\s[a-zA-Z]+)?$',employee_name):
+                if not validate_name(employee_name):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid Name'
-                elif not re.match(r"^\d{12}$",aadhar_number):
+                elif not validate_aadhar_number(aadhar_number):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid aadhar'
                 elif aadhar_number != confirm_aadhar_number:
                     res.is_employee_register_successfull = False
                     res.error = 'Aadhar number not matched'
-                elif not re.match( r"^(?:(?:[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*)|(?:\".+\"))@(?:(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?$",email):
+                elif not validate_email(email):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid email'
-                elif not re.match(r'^\d{10}$', mobile_number):
+                elif not validate_mobile_number(mobile_number):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid mobile number'
                 
-                if(not res.is_employee_register_successfull):
+                if res.is_employee_register_successfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 res.user_id = user_id
                 res.organization_id = organization_id
@@ -205,8 +212,9 @@ class CreateEmployeeAPIView(APIView):
                             cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_by_aadhar_number,organization_id,1])
                             res.is_employee_register_successfull = True
                     else:
-                        is_image_valid = validate_image(employee_image,res)
-                        if is_image_valid:
+                        is_image_valid = validate_file_extension(employee_image,res)
+                        is_image_size_valid = validate_file_size(employee_image,res)
+                        if is_image_valid and is_image_size_valid:
                             employee_image = save_image(employee_image_path,employee_image)
                         else:
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
@@ -215,7 +223,7 @@ class CreateEmployeeAPIView(APIView):
                         employee_id_for_organization_mapping = cursor.fetchone()[0]
                         cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_for_organization_mapping,organization_id,1])
                         res.is_employee_register_successfull = True
-                        return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+                    return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -239,10 +247,9 @@ class LoginUserAPIView(APIView):
                 email = data.get('email')
                 password = data.get('password')
                 logger.info(data)
-                res.is_login_successfull = True
-                res.is_user_verified = True
+                res.is_login_successfull = False
+                res.is_user_verified = False
                 if not email or not password:
-                    res.is_login_successfull = False
                     res.error = 'Email and password are required'
                 else:
                     with connection.cursor() as cursor:
@@ -254,18 +261,24 @@ class LoginUserAPIView(APIView):
                             is_verified = user_details[2]
                             ok = verify_password(stored_password, password, salt)
                             if ok and is_verified == 1:
+                                user_data = CustomObject(user_id,email)
+
+                                refresh = RefreshToken.for_user(user_data)
+                                access_token = refresh.access_token
+                                # token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+
+                                res.refresh  = str(refresh)
+                                res.access = str(access_token)
                                 res.user_id = user_id
+                                res.is_user_verified = True
+                                res.is_login_successfull = True
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
                             elif ok and is_verified == 0:
-                                res.is_user_verified = False
-                                res.is_login_successfull = False
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
                             else:
-                                res.is_login_successfull = False
                                 res.error = 'Inavalid credentials'
                                 return JsonResponse(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST) 
                         else:
-                            res.is_login_successfull = False
                             res.error = 'Inavalid credentials'
                             return JsonResponse(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST) 
 
@@ -282,11 +295,14 @@ class LoginUserAPIView(APIView):
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class CreateReviewAPIView(APIView):
+
+    # permission_classes = [IsAuthenticated]
     @csrf_exempt
     def post(self,request):
         res = response()
         try:
             with transaction.atomic():
+                # user_idd = getattr(request, 'user_id', None)
                 data = request.data 
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
@@ -295,6 +311,10 @@ class CreateReviewAPIView(APIView):
                 image = data.get('image')
                 rating = data.get('rating')
                 logger.info(data)
+                # print(user_idd)
+                if not validate_comment(comment):
+                    res.is_review_added_successfull = False
+                    res.error = 'Invalid comment'
                 if image:
                     image = save_image(review_image_path,image)
                 with connection.cursor() as cursor:
@@ -398,7 +418,7 @@ class ShootOtpAPIView(APIView):
                 email = data.get("email")
                 logger.info(data)
                 res.otp_send_successfull = False
-                if not re.match(r'^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$', email):
+                if not validate_email(email):
                     res.otp_send_successfull = False
                     res.error = 'Invalid email'
                 else:
@@ -438,6 +458,12 @@ class VerifyOtpAPIView(APIView):
                 otp_number = data.get("otp_number")
                 logger.info(data)
                 res.otp_verified_successfull = False
+                if not validate_otp(otp_number):
+                    res.otp_verified_successfull = False
+                    res.error = 'Incorrect otp'
+                elif not validate_email(email):
+                    res.otp_verified_successfull = False
+                    res.error = 'Invalid email'   
                 with connection.cursor() as cursor:
                     cursor.execute("SELECT OtpNumber,CreatedOn from OTP where email = %s and Is_Verified = %s ORDER BY CreatedOn desc",[email,0])
                     otp_result = cursor.fetchone()
@@ -486,7 +512,7 @@ class UpdatePasswordAPIView(APIView):
                 logger.info(data)
                 res.password_updated_successFull = False
 
-                if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$', password):
+                if not validate_password(password):
                     res.password_updated_successFull = False
                     res.error = 'Choose strong password'
                 else:
@@ -585,14 +611,20 @@ class CreateOrganizationAPIview(APIView):
                 with connection.cursor() as cursor:
                     is_valid = validate_organization(document_number,res)
                     if is_valid:
-                        is_image_valid = validate_image(organization_image,res)
-                        if is_image_valid:
+                        is_image_valid = validate_file_extension(organization_image,res)
+                        is_image_size_valid = validate_file_size(organization_image,res)
+
+                        if is_image_valid and is_image_size_valid:
                             organization_image = save_image(organization_image_path,organization_image)
                         else:
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
-                        document_file = save_image(document_image_path,document_file)
+                        
+                        if validate_file_size(document_file,res):
+                            document_file = save_image(document_image_path,document_file)
+                        else:
+                            return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         cursor.execute("Insert into Organization(Name,Image,DocumentTypeId,DocumentNumber,GSTIN,SectorId,ListedId,CountryId,StateId,CityId,Area,PinCode,DocumentFile,NumberOfEmployee,CreatedOn) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,GETDATE())",
-                                       [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
+                                    [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
                         cursor.execute("Select OrganizationId from Organization where DocumentNumber = %s",[document_number])
                         organization_details = cursor.fetchone()
                         organization_id = organization_details[0]
