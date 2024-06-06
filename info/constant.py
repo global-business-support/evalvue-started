@@ -10,4 +10,5 @@ organization_found_document_number = "Document number {} already exist's."
 salt = '##evalvue@()@#!'
 database_root = 'https://api.evalvue.com/media/'
 email_otp_template_path = 'info/email_template.html'
-image_validation_error = 'Invalid file type. Only .png, .jpeg, and .jpg are allowed.'
+file_validation_extension_error = 'Invalid file type. Only .png, .jpeg, and .jpg are allowed.'
+file_validation_size_error = 'File size should be less than 5 MB'
