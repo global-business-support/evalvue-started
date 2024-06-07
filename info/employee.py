@@ -8,6 +8,8 @@ class employee:
         self.mobile_number = None
         self.aadhar_number = None
         self.designation = None
+        self.image = None
+        self.average_rating = None
 
     def to_dict(self):
         return {
@@ -17,7 +19,8 @@ class employee:
             "mobile_number": self.mobile_number,
             "image": self.employee_image,
             "designation":self.designation,
-            "aadhar_number": self.aadhar_number
+            "aadhar_number": self.aadhar_number,
+            "average_rating": self.average_rating
 
         }
     # def convertToJSON(self):
