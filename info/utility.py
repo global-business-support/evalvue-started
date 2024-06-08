@@ -111,7 +111,17 @@ def validate_file_size(image,res):
     except Exception as e:
         logger.exception('An unexpected error occurred: {}'.format(str(e)))
         return False
-        
+def delete_file(file_path):
+    try:
+        # Check if the file exists
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+            return True
+        else:
+            return False
+    except Exception as e:
+        logger.exception('An unexpected error occurred: {}'.format(str(e)))
+        return False    
 
 
 def populateAddOrganizationData(res):
@@ -129,6 +139,11 @@ def convert_to_ist_time(sql_server_time):
     formatted_time = ist_time.strftime("%d %B at %I:%M %p")
     return formatted_time
 
+def extract_path(url):
+    # Split the URL by '/' and join the necessary parts
+    parts = url.split('/')
+    extracted_path = '/'.join(parts[4:])
+    return extracted_path
 class CustomObject:
     def __init__(self, user_id, email):
         self.id = user_id

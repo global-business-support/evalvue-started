@@ -1,7 +1,7 @@
 from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
-
+import os 
 import jwt
 import pytz
 from rest_framework import status
@@ -29,6 +29,7 @@ from evalvue import settings
 from info import aadhar, organization, review
 from info.common_regex import validate_aadhar_number, validate_comment, validate_email, validate_mobile_number, validate_name, validate_otp, validate_password
 from info.constant import *
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password, extract_path, delete_file
 from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_file_extension, validate_file_size, validate_organization, verify_password
 from .employee import *
 from .organization import *
@@ -44,6 +45,10 @@ from rest_framework.permissions import IsAuthenticated
 
 logger = logging.getLogger('info')
 
+def capitalize_words(s):
+    return s.upper()
+    
+
 class CreateUserAPIView(APIView):
     @csrf_exempt
     def post(self, request):
@@ -51,7 +56,8 @@ class CreateUserAPIView(APIView):
         try:
             with transaction.atomic():
                 data = request.data
-                name = data.get('name')
+                name = capitalize_words(data.get('name'))
+                print(name)
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 password = data.get('password')
@@ -160,14 +166,14 @@ class CreateEmployeeAPIView(APIView):
                 data = request.data
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
-                first_name = data.get('first_name')
-                last_name = data.get('last_name')
+                first_name = capitalize_words(data.get('first_name'))
+                last_name = capitalize_words(data.get('last_name'))
                 employee_image = data.get('employee_image')
                 aadhar_number = data.get('aadhar_number')
                 confirm_aadhar_number = data.get('confirm_aadhar_number')
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
-                designation = data.get('designation')
+                designation = capitalize_words(data.get('designation'))
                 employee_name = first_name + " " + last_name
                 logger.info(data)
                 if not validate_name(employee_name):
@@ -594,7 +600,7 @@ class CreateOrganizationAPIview(APIView):
             with transaction.atomic():
                 data = request.data
                 user_id = data.get("user_id")
-                organization_name = data.get("organization_name")
+                organization_name = capitalize_words(data.get("organization_name"))
                 organization_image = data.get("organization_image")
                 document_type_id = data.get("document_type_id")
                 document_number = data.get("document_number")
@@ -767,6 +773,132 @@ class SearchByAadharAPIview(APIView):
             res.employees_mapped_to_aadhar = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TopFiveEmployeeAPIview(APIView):
+    def post(self,request):
+        data = request.data
+        logger.info(data)
+        user_id = data.get("user_id")
+        res = response()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("WITH AverageRatings AS (SELECT Emp.EmployeeId,AVG(Rate.Rating) AS AverageRating FROM [testdb].[dbo].[ReviewEmployeeOrganizationMapping] AS Emp JOIN [testdb].[dbo].[Review] AS Rate ON Emp.ReviewId = Rate.ReviewId GROUP BY Emp.EmployeeId)SELECT TOP 5 AR.EmployeeId,E.Name,E.Designation,E.Image,AR.AverageRating FROM AverageRatings AS AR JOIN [testdb].[dbo].[Employee] AS E ON AR.EmployeeId = E.EmployeeId ORDER BY AR.AverageRating DESC")
+                rows = cursor.fetchall()
+                top = []
+                if rows:
+                    for row in rows:
+                        top_employee = employee()
+                        top_employee.employee_id = row[0]
+                        top_employee.employee_name = row[1]
+                        top_employee.designation = row[2]
+                        top_employee.employee_image = row[3]
+                        top_employee.average_rating = row[4]
+                        top.append(top_employee.to_dict())
+                    res.top_employee = top
+                    res.is_top_employee = True
+                else:
+                    res.is_top_employee = False
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+    
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class EditOrganizationAPIview(APIView):
+    def post(self,request):
+        res = response()
+        try:
+            with transaction.atomic():
+                data = request.data
+                organization_id = data.get("organization_id")
+                organization_name = capitalize_words(data.get("organization_name"))
+                organization_image = data.get("organization_image")
+                sector_id = data.get("sector_id")
+                listed_id = data.get("listed_id")
+                country_id = data.get("country_id")
+                state_id = data.get("state_id")
+                city_id = data.get("city_id")
+                area = data.get("area")
+                pincode = data.get("pincode")
+                number_of_employee = data.get("number_of_employee")
+                logger.info(data)
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT Image FROM employee WHERE OrganizationId = %s", [organization_id])
+                    img = cursor.fetchone()
+                    old_image = img[0]
+
+                    is_image_valid = validate_image(employee_image,res)
+                    if is_image_valid:
+                        employee_image = save_image(employee_image_path,employee_image)
+                        file_path = extract_path(old_image)
+                        delete_file(file_path)     
+                    else:
+                        res.organization_edit_sucessfull = False
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                    
+                    cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                    res.organization_edit_sucessfull = True
+                    return Response(res.convertToJSON(), status = status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+              
+class EditEmployeeAPIview(APIView):
+    def post(self, request):
+        res = response()
+        try:
+            with transaction.atomic():
+                data = request.data
+                employee_id = data.get("employee_id")
+                employee_name = capitalize_words(data.get("employee_name"))
+                employee_email = data.get("employee_email")
+                employee_phone = data.get("employee_phone")
+                employee_designation = capitalize_words(data.get("employee_designation"))
+                employee_image = data.get("employee_image")
+
+                logger.info(data)
+                
+                with connection.cursor() as cursor:
+
+                    cursor.execute("SELECT Image FROM employee WHERE EmployeeId = %s", [employee_id])
+                    img = cursor.fetchone()
+                    old_image = img[0]
+
+                    is_image_valid = validate_image(employee_image,res)
+                    if is_image_valid:
+                        employee_image = save_image(employee_image_path,employee_image)
+                        file_path = extract_path(old_image)
+                        delete_file(file_path)
+                        
+                    else:
+                        res.employee_edit_sucessfull = False
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                    
+                    cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,employee_email,employee_phone,employee_designation,employee_image,employee_id])
+
+                    res.employee_edit_sucessfull = True
+                    return Response(res.convertToJSON(), status = status.HTTP_200_OK)
+                
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
 
 class EmployeeEditableDataAPIView(APIView):
     @csrf_exempt
