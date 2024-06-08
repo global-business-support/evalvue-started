@@ -144,6 +144,7 @@ def extract_path(url):
     parts = url.split('/')
     extracted_path = '/'.join(parts[4:])
     return extracted_path
+
 class CustomObject:
     def __init__(self, user_id, email):
         self.id = user_id
