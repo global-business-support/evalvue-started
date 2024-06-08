@@ -19,7 +19,7 @@ urlpatterns = [
     path('search/employee/aadhar/',SearchByAadharAPIview.as_view(), name='search_employee_aadhar'),
     path('top/employee/', TopFiveEmployeeAPIview.as_view(), name = 'top_employee'),
     path('organization/edit/', EditOrganizationAPIview.as_view(), name = "organization_edit"),
-    path('employee/edit/',EditEmployeeAPIview.as_view(), name = 'employee_edit')
+    path('employee/edit/',EditEmployeeAPIview.as_view(), name = 'employee_edit'),
 
 
 ]

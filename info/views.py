@@ -1,6 +1,7 @@
 from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
+import os 
 import pytz
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -25,7 +26,7 @@ from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
 from info import aadhar, organization, review
 from info.constant import *
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password, extract_path, delete_file
 from .employee import *
 from .organization import *
 from .response import *
@@ -36,7 +37,7 @@ from .cache import *
 logger = logging.getLogger('info')
 
 def capitalize_words(s):
-    return ' '.join(word.capitalize() for word in s.split(' '))
+    return s.upper()
     
 
 class CreateUserAPIView(APIView):
@@ -46,7 +47,8 @@ class CreateUserAPIView(APIView):
         try:
             with transaction.atomic():
                 data = request.data
-                name = data.get('name')
+                name = capitalize_words(data.get('name'))
+                print(name)
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 password = data.get('password')
@@ -155,14 +157,14 @@ class CreateEmployeeAPIView(APIView):
                 data = request.data
                 user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
-                first_name = data.get('first_name')
-                last_name = data.get('last_name')
+                first_name = capitalize_words(data.get('first_name'))
+                last_name = capitalize_words(data.get('last_name'))
                 employee_image = data.get('employee_image')
                 aadhar_number = data.get('aadhar_number')
                 confirm_aadhar_number = data.get('confirm_aadhar_number')
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
-                designation = data.get('designation')
+                designation = capitalize_words(data.get('designation'))
                 employee_name = first_name + " " + last_name
                 logger.info(data)
                 res.is_employee_register_successfull = True
@@ -571,7 +573,7 @@ class CreateOrganizationAPIview(APIView):
             with transaction.atomic():
                 data = request.data
                 user_id = data.get("user_id")
-                organization_name = data.get("organization_name")
+                organization_name = capitalize_words(data.get("organization_name"))
                 organization_image = data.get("organization_image")
                 document_type_id = data.get("document_type_id")
                 document_number = data.get("document_number")
@@ -782,7 +784,7 @@ class EditOrganizationAPIview(APIView):
             with transaction.atomic():
                 data = request.data
                 organization_id = data.get("organization_id")
-                organization_name = data.get("organization_name")
+                organization_name = capitalize_words(data.get("organization_name"))
                 organization_image = data.get("organization_image")
                 sector_id = data.get("sector_id")
                 listed_id = data.get("listed_id")
@@ -793,6 +795,23 @@ class EditOrganizationAPIview(APIView):
                 pincode = data.get("pincode")
                 number_of_employee = data.get("number_of_employee")
                 logger.info(data)
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT Image FROM employee WHERE OrganizationId = %s", [organization_id])
+                    img = cursor.fetchone()
+                    old_image = img[0]
+
+                    is_image_valid = validate_image(employee_image,res)
+                    if is_image_valid:
+                        employee_image = save_image(employee_image_path,employee_image)
+                        file_path = extract_path(old_image)
+                        delete_file(file_path)     
+                    else:
+                        res.organization_edit_sucessfull = False
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                    
+                    cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                    res.organization_edit_sucessfull = True
+                    return Response(res.convertToJSON(), status = status.HTTP_200_OK)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.error = generic_error_message
@@ -802,7 +821,8 @@ class EditOrganizationAPIview(APIView):
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+
+              
 class EditEmployeeAPIview(APIView):
     def post(self, request):
         res = response()
@@ -810,23 +830,33 @@ class EditEmployeeAPIview(APIView):
             with transaction.atomic():
                 data = request.data
                 employee_id = data.get("employee_id")
-                employee_name = data.get("employee_name")
+                employee_name = capitalize_words(data.get("employee_name"))
                 employee_email = data.get("employee_email")
                 employee_phone = data.get("employee_phone")
-                employee_designation = data.get("employee_designation")
+                employee_designation = capitalize_words(data.get("employee_designation"))
                 employee_image = data.get("employee_image")
 
                 logger.info(data)
                 
                 with connection.cursor() as cursor:
+
+                    cursor.execute("SELECT Image FROM employee WHERE EmployeeId = %s", [employee_id])
+                    img = cursor.fetchone()
+                    old_image = img[0]
+
                     is_image_valid = validate_image(employee_image,res)
                     if is_image_valid:
                         employee_image = save_image(employee_image_path,employee_image)
+                        file_path = extract_path(old_image)
+                        delete_file(file_path)
+                        
                     else:
-                            return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                        res.employee_edit_sucessfull = False
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
-                    cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,employee_email,employee_phone,employee_designation,employee_id])
+                    cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,employee_email,employee_phone,employee_designation,employee_image,employee_id])
 
+                    res.employee_edit_sucessfull = True
                     return Response(res.convertToJSON(), status = status.HTTP_200_OK)
                 
         except IntegrityError as e:

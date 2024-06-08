@@ -38,6 +38,8 @@ class response:
         self.employees_mapped_to_aadhar = None
         self.top_employee = None
         self.is_top_employee = None
+        self.employee_edit_sucessfull = None
+        self.organization_edit_sucessfull = None
 
     def convertToJSON(self):
         res = {}
