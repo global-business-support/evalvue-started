@@ -29,7 +29,7 @@ from evalvue import settings
 from info import aadhar, organization, review
 from info.common_regex import validate_aadhar_number, validate_comment, validate_email, validate_mobile_number, validate_name, validate_otp, validate_password
 from info.constant import *
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password, extract_path, delete_file
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password, extract_path, delete_file
 from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_file_extension, validate_file_size, validate_organization, verify_password
 from .employee import *
 from .organization import *
@@ -559,10 +559,10 @@ class OrganizationAPIView(APIView):
                         organization_id_list.append(str(organization_detail[0]))
                         organization_verified_dict[organization_detail[0]] = organization_detail[1]
                     strr = ','.join(organization_id_list)
-                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
+                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, DocumentNumber,CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
                     organization_detail_list_by_id = cursor.fetchall()
                     organization_detail_list = []
-                    for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
+                    for id,name,image,sector_id,listed_id,document_number,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
                         org = organization()
                         org.organization_id = id
                         org.name = name
@@ -572,6 +572,7 @@ class OrganizationAPIView(APIView):
                         org.country_name = country_data[country_id]['Name']
                         org.state_name = state_data[state_id]['Name']
                         org.city_name = city_data[city_id]['Name']
+                        org.document_number = document_number
                         org.area = area
                         org.pincode = pincode
                         org.organization_verified = organization_verified_dict[id]
@@ -833,7 +834,7 @@ class EditOrganizationAPIview(APIView):
                     img = cursor.fetchone()
                     old_image = img[0]
 
-                    is_image_valid = validate_image(employee_image,res)
+                    is_image_valid = validate_file_extension(employee_image,res)
                     if is_image_valid:
                         employee_image = save_image(employee_image_path,employee_image)
                         file_path = extract_path(old_image)
