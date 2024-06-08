@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
-from .views import CreateEmployeeAPIView, CreateReviewAPIView, CreateUserAPIView, DashboardFeedAPIview, EmployeeAPIView, SearchByAadharAPIview, ShootOtpAPIView, LoginUserAPIView, ReviewAPIView, UpdatePasswordAPIView, VerifyOtpAPIView,OrganizationAPIView,CreateOrganizationAPIview,AddOrganizationAPIview
+from .views import CreateEmployeeAPIView, CreateReviewAPIView, CreateUserAPIView, DashboardFeedAPIview, EmployeeAPIView, EmployeeEditableDataAPIView, OrganizationEditableDataAPIView, SearchByAadharAPIview, ShootOtpAPIView, LoginUserAPIView, ReviewAPIView, TerminateEmployeeAPIView, UpdatePasswordAPIView, VerifyOtpAPIView,OrganizationAPIView,CreateOrganizationAPIview,AddOrganizationAPIview
+
 urlpatterns = [
     path('create/user/', CreateUserAPIView.as_view(), name='create_user'),
     path('employees/', EmployeeAPIView.as_view(), name='employees'),
@@ -16,6 +17,12 @@ urlpatterns = [
     path('add/organization/',AddOrganizationAPIview.as_view(), name='add_organization'),
     path('dashboard/feed/',DashboardFeedAPIview.as_view(), name='dashboard_feed'),
     path('search/employee/aadhar/',SearchByAadharAPIview.as_view(), name='search_employee_aadhar'),
+
+
+    
+    path('employee/editable/data/',EmployeeEditableDataAPIView.as_view(), name='employee_editable_data'),
+    path('organization/editable/data/',OrganizationEditableDataAPIView.as_view(), name='organization_editable_data'),
+    path('terminate/employee/',TerminateEmployeeAPIView.as_view(), name='terminate_employee'),
 
 
 ]

@@ -1,6 +1,7 @@
 from urllib.parse import quote
 from django.shortcuts import render,redirect
 from django.http import JsonResponse
+
 import jwt
 import pytz
 from rest_framework import status
@@ -115,7 +116,7 @@ class EmployeeAPIView(APIView):
                 res.is_employee_mapped_to_organization_successfull = False
                 
                 with connection.cursor() as cursor:
-                    cursor.execute("select EmployeeId from EmployeeOrganizationMapping where OrganizationId = %s ORDER BY CreatedOn DESC",[organization_id])
+                    cursor.execute("select EmployeeId from EmployeeOrganizationMapping where OrganizationId = %s and StatusId = %s ORDER BY CreatedOn DESC",[organization_id,1])
                     employee_id_results = cursor.fetchall()
                     if employee_id_results:
                         employee_list = []
@@ -638,13 +639,13 @@ class CreateOrganizationAPIview(APIView):
                     
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
-            res.is_organization_created_successfully = False
+            res.is_organization_created_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
-            res.is_organization_created_successfully = False
+            res.is_organization_created_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
@@ -663,13 +664,13 @@ class AddOrganizationAPIview(APIView):
 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
-            res.is_organization_created_successfully = False
+            res.is_organization_created_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
-            res.is_organization_created_successfully = False
+            res.is_organization_created_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
@@ -767,8 +768,134 @@ class SearchByAadharAPIview(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-        
-    
+class EmployeeEditableDataAPIView(APIView):
+    @csrf_exempt
+    def post(emp,request):
+        res = response()
+        try:
+            with transaction.atomic():
+                data = request.data
+                user_id = data.get('user_id')
+                employee_id = data.get('employee_id')
+                logger.info(data)                
+                with connection.cursor() as cursor:
+                    # cursor.execute("select EmployeeId from EmployeeOrganizationMapping where OrganizationId = %s ORDER BY CreatedOn DESC",[organization_id])
+                    # employee_id_results = cursor.fetchall()
+                    # if employee_id_results:
+                    #     employee_list = []
+                    #     for employee_id_result in employee_id_results:
+                    #         employee_id = employee_id_result[0]
+                    employee_list = []
+                    cursor.execute("SELECT Name, Email, MobileNumber, Image, AadharNumber,Designation FROM Employee WHERE EmployeeId = %s", [employee_id])
+                    employee_details = cursor.fetchall()
+                    for emp_name,emp_email,emp_mobile,emp_image,emp_aadhar,emp_designation in employee_details:
+                        emp = employee()
+                        emp.aadhar_number = emp_aadhar
+                        emp.employee_image = emp_image
+                        emp.employee_name = emp_name
+                        emp.email = emp_email
+                        emp.mobile_number = emp_mobile
+                        emp.designation = emp_designation
+                        employee_list.append(emp.to_dict())
+                res.user_id = user_id
+                res.employee_id = employee_id
+                res.employee_list = employee_list
+                res.employee_editable_data_send_successfull = True
+            return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+            
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.employee_editable_data_send_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.employee_editable_data_send_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
+class OrganizationEditableDataAPIView(APIView):
+    @csrf_exempt
+    def post(self,request):
+        try:
+            data = request.data
+            user_id = data.get('user_id')
+            organization_id = data.get('organization_id')
+            logger.info(data)
+            res = response()
+            with connection.cursor() as cursor:
+                # cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
+                # organization_details_by_user_id = cursor.fetchall()
+                # if organization_details_by_user_id:
+                #     res.is_organization_mapped = True
+                #     organization_id_list = []
+                #     organization_verified_dict = {}
+                #     for organization_detail in organization_details_by_user_id:
+                #         organization_id_list.append(str(organization_detail[0]))
+                #         organization_verified_dict[organization_detail[0]] = organization_detail[1]
+                #     strr = ','.join(organization_id_list)
+                cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId = %s",[organization_id])
+                organization_detail_list_by_id = cursor.fetchall()
+                print(organization_detail_list_by_id)
+                organization_detail_list = []
+                for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
+                    org = organization()
+                    org.name = name
+                    org.image = image
+                    org.sector_name = sector_type_data[sector_id]['Name']
+                    org.listed_name = listed_type_data[listed_id]['Name']
+                    org.country_name = country_data[country_id]['Name']
+                    org.state_name = state_data[state_id]['Name']
+                    org.city_name = city_data[city_id]['Name']
+                    org.area = area
+                    org.pincode = pincode
+                    # org.organization_verified = organization_verified_dict[id]
+                    organization_detail_list.append(org.to_dict())
+                res.organization_list = organization_detail_list
+                res.user_id = user_id
+                res.organization_id = organization_id
+                res.organization_editable_data_send_succesfull = True
+                return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.organization_editable_data_send_succesfull = True
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.organization_editable_data_send_succesfull = True
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TerminateEmployeeAPIView(APIView):
+    @csrf_exempt
+    def post(self, request):
+        res = response()
+        try:
+            with transaction.atomic():
+                data = request.data
+                user_id = data.get('user_id')
+                organization_id = data.get('organization_id')
+                employee_id = data.get('employee_id')
+                logger.info(data)
+                res = response()
+                with connection.cursor() as cursor:
+                    cursor.execute("Update EmployeeOrganizationMapping set StatusId = %s Where EmployeeId = %s and OrganizationId = %s",[0,employee_id,organization_id])
+                    res.is_employee_terminated_successfull = True
+                    res.user_id = user_id
+                    res.organization_id = organization_id
+                    res.employee_id = employee_id
+                    return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_employee_terminated_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_employee_terminated_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
