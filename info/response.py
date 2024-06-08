@@ -30,7 +30,7 @@ class response:
         self.incorrect_otp = None
         self.is_organization_register_successfull = None
         self.is_organization_mapped = None
-        self.is_organization_created_successfully = None
+        self.is_organization_created_successfull = None
         self.is_email_verified_successfull = None
         self.is_user_verified = None
         self.is_review_mapped = None
@@ -40,6 +40,14 @@ class response:
         self.is_top_employee = None
         self.employee_edit_sucessfull = None
         self.organization_edit_sucessfull = None
+
+
+
+        
+        self.refresh = None
+        self.employee_editable_data_send_successfull = None
+        self.organization_editable_data_send_succesfull = None
+        self.is_employee_terminated_successfull = None
 
     def convertToJSON(self):
         res = {}
