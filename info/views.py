@@ -441,6 +441,8 @@ class ShootOtpAPIView(APIView):
                                 res.otp_send_successfull = True
                                 res.user_id = email_result[0]
                                 res.email = email_result[1]
+                        else:
+                            res.error = reset_password_email_not_found 
                 return Response(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
