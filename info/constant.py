@@ -12,6 +12,7 @@ database_root = 'https://api.evalvue.com/media/'
 email_otp_template_path = 'info/email_template.html'
 file_validation_extension_error = 'Invalid file type. Only .png, .jpeg, and .jpg are allowed.'
 file_validation_size_error = 'File size should be less than 5 MB'
+reset_password_email_not_found = 'Email address is not found'
 email_already_exist_error ="Email already exist's."
 mobile_number_already_exist_error = "Mobile number already exist's."
 aadhar_number_already_exist_error = "Aadhar number already exist's."
