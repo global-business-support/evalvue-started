@@ -15,6 +15,11 @@ def validate_email(email):
         return True
     return False
 
+def validate_designation(designation):
+    if re.match(r"^[a-zA-Z\s.,&()-]{1,50}$",designation.strip()):
+        return True
+    return False
+
 def validate_password(password):
     if re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$', password.strip()):
         return True
@@ -36,7 +41,17 @@ def validate_otp(otp_number):
     return False
 
 def validate_organization_name(organization_name):
-    if re.match(r"^(?=.{2,50}$)[a-zA-Z0-9&.,'\-() ]+$",organization_name.strip()):
+    if re.match(r"^.{1,50}$",organization_name.strip()):
+        return True
+    return False
+
+def validate_pin_code(pincode):
+    if re.match(r"^[1-9][0-9]{5}$",pincode.strip()):
+        return True
+    return False
+
+def validate_gstin(gstin):
+    if re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$",gstin.strip()):
         return True
     return False
 
