@@ -144,7 +144,36 @@ def extract_path(url):
     parts = url.split('/')
     extracted_path = '/'.join(parts[4:])
     return extracted_path
+
+def validate_employee(employee_id,email,mobile_number,aadhar_number,res):
+    if not mobile_number and not aadhar_number:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT Email from Employee WHERE EmployeeId != %s and Email = %s",[employee_id,email])
+            result = cursor.fetchone()
+            if result:
+                res.employee_edit_sucessfull = False
+                res.error = constant.email_already_exist_error
+                return True
+    if not email and not aadhar_number:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT MobileNumber from Employee WHERE EmployeeId != %s and MobileNumber = %s",[employee_id,mobile_number])
+            result = cursor.fetchone()
+            if result:
+                res.employee_edit_sucessfull = False
+                res.error = constant.mobile_number_already_exist_error
+                return True
+    if not email and not mobile_number:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT AadharNumber from Employee WHERE EmployeeId != %s and AadharNumber = %s",[employee_id,aadhar_number])
+            result = cursor.fetchone()
+            if result:
+                res.employee_edit_sucessfull = False
+                res.error = constant.aadhar_number_already_exist_error
+                return True
+    
 class CustomObject:
     def __init__(self, user_id, email):
         self.id = user_id
         self.email = email
+
+

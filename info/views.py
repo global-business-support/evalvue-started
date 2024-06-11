@@ -27,9 +27,10 @@ from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
 from evalvue import settings
 from info import aadhar, organization, review
-from info.common_regex import validate_aadhar_number, validate_comment, validate_email, validate_mobile_number, validate_name, validate_otp, validate_password
+from info import constant
+from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code
 from info.constant import *
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_image, validate_organization, verify_password, extract_path, delete_file
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_employee, validate_organization, verify_password, extract_path, delete_file
 from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_file_extension, validate_file_size, validate_organization, verify_password
 from .employee import *
 from .organization import *
@@ -176,6 +177,7 @@ class CreateEmployeeAPIView(APIView):
                 designation = capitalize_words(data.get('designation'))
                 employee_name = first_name + " " + last_name
                 logger.info(data)
+                res.is_employee_register_successfull = True
                 if not validate_name(employee_name):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid Name'
@@ -191,8 +193,11 @@ class CreateEmployeeAPIView(APIView):
                 elif not validate_mobile_number(mobile_number):
                     res.is_employee_register_successfull = False
                     res.error = 'Invalid mobile number'
+                elif not validate_designation(designation):
+                    res.is_employee_register_successfull = False
+                    res.error = 'Invalid designation'
                 
-                if res.is_employee_register_successfull:
+                if not res.is_employee_register_successfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 res.user_id = user_id
                 res.organization_id = organization_id
@@ -211,7 +216,7 @@ class CreateEmployeeAPIView(APIView):
                             organization_name = cursor.fetchone()[0]
 
                             if organization_name:
-                                res.error = employee_already_mapped_to_organization.format(employee_name_by_aadhar_number,organization_name)
+                                res.error = employee_already_mapped_to_organization.format(employee_name_by_aadhar_number)
                                 res.is_employee_register_successfull = False
                             else:
                                 raise Exception(organization_name_not_found.format(organization_id_already_mapped))
@@ -319,9 +324,12 @@ class CreateReviewAPIView(APIView):
                 rating = data.get('rating')
                 logger.info(data)
                 # print(user_idd)
+                res.is_review_added_successfull = True
                 if not validate_comment(comment):
                     res.is_review_added_successfull = False
                     res.error = 'Invalid comment'
+                if not res.is_review_added_successfull:
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 if image:
                     image = save_image(review_image_path,image)
                 with connection.cursor() as cursor:
@@ -615,6 +623,20 @@ class CreateOrganizationAPIview(APIView):
                 number_of_employee = data.get("number_of_employee")
                 document_file = data.get("document_file")
                 logger.info(data)
+                res.is_organization_register_successfull = True
+                if not validate_organization_name(organization_name):
+                    res.is_organization_register_successfull = False
+                    res.error = 'Invalid organization name'
+                elif not validate_gstin(gstin):
+                    res.is_organization_register_successfull = False
+                    res.error = 'Invalid GSTIN number'
+                elif not validate_pin_code(pincode):
+                    res.is_organization_register_successfull = False
+                    res.error = 'Invalid pincode'
+            
+                if not res.is_organization_register_successfull:
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                
                 with connection.cursor() as cursor:
                     is_valid = validate_organization(document_number,res)
                     if is_valid:
@@ -639,19 +661,21 @@ class CreateOrganizationAPIview(APIView):
                         res.is_organization_register_successfull = True
                         res.user_id = user_id
                         res.organization_id = organization_id
+
                         return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
                     else:
+                        print("hi")
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
-            res.is_organization_created_successfull = False
+            res.is_organization_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
-            res.is_organization_created_successfull = False
+            res.is_organization_register_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
@@ -816,6 +840,7 @@ class EditOrganizationAPIview(APIView):
         try:
             with transaction.atomic():
                 data = request.data
+                user_id = data.get("user_id")
                 organization_id = data.get("organization_id")
                 organization_name = capitalize_words(data.get("organization_name"))
                 organization_image = data.get("organization_image")
@@ -828,30 +853,43 @@ class EditOrganizationAPIview(APIView):
                 pincode = data.get("pincode")
                 number_of_employee = data.get("number_of_employee")
                 logger.info(data)
+                res.organization_edit_sucessfull = True 
+                if not validate_organization_name(organization_name):
+                    res.organization_edit_sucessfull = False
+                    res.error = 'Invalid organization name'
+                elif not validate_pin_code(pincode):
+                    res.organization_edit_sucessfull = False
+                    res.error = 'Invalid pincode'
+                if not res.organization_edit_sucessfull:
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT Image FROM employee WHERE OrganizationId = %s", [organization_id])
-                    img = cursor.fetchone()
-                    old_image = img[0]
-
-                    is_image_valid = validate_image(employee_image,res)
-                    if is_image_valid:
-                        employee_image = save_image(employee_image_path,employee_image)
-                        file_path = extract_path(old_image)
-                        delete_file(file_path)     
+                    cursor.execute("SELECT Image FROM Organization WHERE OrganizationId = %s", [organization_id])
+                    result = cursor.fetchone()
+                    old_image = result[0]
+                    is_image_valid = validate_file_extension(organization_image,res)
+                    is_image_size_valid = validate_file_size(organization_image,res)
+                    if is_image_valid and is_image_size_valid:
+                        organization_image = save_image(organization_image_path,organization_image)
+                        image_path = extract_path(old_image)
+                        delete_file(image_path)
                     else:
                         res.organization_edit_sucessfull = False
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
-                    cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                    cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                    res.user_id = user_id
+                    res.organization_id = organization_id
                     res.organization_edit_sucessfull = True
-                    return Response(res.convertToJSON(), status = status.HTTP_200_OK)
+                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
+            res.organization_edit_sucessfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.organization_edit_sucessfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -862,43 +900,62 @@ class EditEmployeeAPIview(APIView):
         try:
             with transaction.atomic():
                 data = request.data
+                user_id = data.get("user_id")
                 employee_id = data.get("employee_id")
                 employee_name = capitalize_words(data.get("employee_name"))
                 employee_email = data.get("employee_email")
-                employee_phone = data.get("employee_phone")
+                employee_phone = data.get("employee_phone")     
                 employee_designation = capitalize_words(data.get("employee_designation"))
                 employee_image = data.get("employee_image")
-
                 logger.info(data)
+                res.employee_edit_sucessfull = True
+                if not validate_name(employee_name):
+                    res.employee_edit_sucessfull = False
+                    res.error = 'Invalid Name'
+                elif not validate_email(employee_email):
+                    res.employee_edit_sucessfull = False
+                    res.error = 'Invalid email'
+                elif not validate_mobile_number(employee_phone):
+                    res.employee_edit_sucessfull = False
+                    res.error = 'Invalid mobile number'
+                elif not validate_designation(employee_designation):
+                    res.employee_edit_sucessfull = False
+                    res.error = 'Invalid designation'
                 
-                with connection.cursor() as cursor:
-
+                if not res.employee_edit_sucessfull:
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                if validate_employee(employee_id,employee_email,None,None,res) or validate_employee(employee_id,None,employee_phone,None,res):
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                with connection.cursor() as cursor:      
                     cursor.execute("SELECT Image FROM employee WHERE EmployeeId = %s", [employee_id])
                     img = cursor.fetchone()
                     old_image = img[0]
 
-                    is_image_valid = validate_image(employee_image,res)
-                    if is_image_valid:
+                    is_image_valid = validate_file_extension(employee_image,res)
+                    is_image_size_valid = validate_file_size(employee_image,res)
+                    if is_image_valid and is_image_size_valid:
                         employee_image = save_image(employee_image_path,employee_image)
                         file_path = extract_path(old_image)
-                        delete_file(file_path)
-                        
+                        delete_file(file_path) 
                     else:
                         res.employee_edit_sucessfull = False
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
                     cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,employee_email,employee_phone,employee_designation,employee_image,employee_id])
-
                     res.employee_edit_sucessfull = True
-                    return Response(res.convertToJSON(), status = status.HTTP_200_OK)
+                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
+            res.employee_edit_sucessfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.employee_edit_sucessfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EmployeeEditableDataAPIView(APIView):
     @csrf_exempt
