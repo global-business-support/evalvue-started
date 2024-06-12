@@ -650,11 +650,13 @@ class CreateOrganizationAPIview(APIView):
                         if is_image_valid and is_image_size_valid:
                             organization_image = save_image(organization_image_path,organization_image)
                         else:
+                            res.is_organization_register_successfull = False
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         
                         if validate_file_size(document_file,res):
                             document_file = save_image(document_image_path,document_file)
                         else:
+                            res.is_organization_register_successfull = False
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         cursor.execute("Insert into Organization(Name,Image,DocumentTypeId,DocumentNumber,GSTIN,SectorId,ListedId,CountryId,StateId,CityId,Area,PinCode,DocumentFile,NumberOfEmployee,CreatedOn) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,GETDATE())",
                                     [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
@@ -668,7 +670,6 @@ class CreateOrganizationAPIview(APIView):
 
                         return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
                     else:
-                        print("hi")
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
         except IntegrityError as e:
