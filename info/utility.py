@@ -103,7 +103,7 @@ def validate_file_size(image,res):
     try:
         file_size = 1024 * 1024 * 2
         if image.size > file_size:
-            res.is_image_validate = True
+            res.is_file_validate = True
             res.error = constant.file_validation_size_error
             return False
         else:
