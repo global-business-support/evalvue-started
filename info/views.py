@@ -176,7 +176,7 @@ class CreateEmployeeAPIView(APIView):
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 designation = capitalize_words(data.get('designation'))
-                employee_name = first_name + " " + last_name
+                employee_name = first_name.strip() + " " + last_name.strip()
                 logger.info(data)
                 res.is_employee_register_successfull = True
                 if not validate_name(employee_name):
@@ -313,13 +313,16 @@ class CreateReviewAPIView(APIView):
                     res.error = 'Invalid comment'
                 if not res.is_review_added_successfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
-                is_image_valid = validate_file_extension(image,res)
-                is_image_size_valid = validate_file_size(image,res)
-                if is_image_valid and is_image_size_valid:
-                    review_image = save_image(review_image_path,image)
+                if image is not None:
+                    is_image_valid = validate_file_extension(image,res)
+                    is_image_size_valid = validate_file_size(image,res)
+                    if is_image_valid and is_image_size_valid:
+                        review_image = save_image(review_image_path,image)
+                    else:
+                        res.is_review_added_successfull = False
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    res.is_review_added_successfull = False
-                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                    review_image = None
                 with connection.cursor() as cursor:
                     cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,review_image,rating])
                     cursor.execute("SELECT max(ReviewId) from Review")
@@ -944,6 +947,8 @@ class EditEmployeeAPIview(APIView):
                     
                     cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,employee_email,employee_phone,employee_designation,employee_image,employee_id])
                     res.employee_edit_sucessfull = True
+                    res.user_id = user_id
+                    res.employee_id = employee_id
                     return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                 
         except IntegrityError as e:
@@ -972,11 +977,20 @@ class EmployeeEditableDataAPIView(APIView):
                     employee_list = []
                     cursor.execute("SELECT Name, Email, MobileNumber, Image, AadharNumber,Designation FROM Employee WHERE EmployeeId = %s", [employee_id])
                     employee_details = cursor.fetchall()
+                    name = employee_details[0][0]
+                    parts = name.split()
+                    if len(parts) >= 3:
+                        first_name = parts[0] + ' ' + parts[1]
+                        last_name = parts[2]
+                    else:
+                        first_name = parts[0]
+                        last_name = parts[1]
                     for emp_name,emp_email,emp_mobile,emp_image,emp_aadhar,emp_designation in employee_details:
                         emp = employee()
                         emp.aadhar_number = emp_aadhar
                         emp.employee_image = emp_image
-                        emp.employee_name = emp_name
+                        emp.first_name = first_name
+                        emp.last_name = last_name
                         emp.email = emp_email
                         emp.mobile_number = emp_mobile
                         emp.designation = emp_designation

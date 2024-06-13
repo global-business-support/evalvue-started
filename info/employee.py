@@ -2,7 +2,8 @@ class employee:
 
     def __init__(self):
         self.employee_id = None
-        self.employee_name = None
+        self.first_name = None
+        self.last_name = None
         self.email = None
         self.employee_image = None
         self.mobile_number = None
@@ -14,7 +15,8 @@ class employee:
     def to_dict(self):
         return {
             "employee_id": self.employee_id,
-            "name": self.employee_name,
+            "first_name":self.first_name,
+            "last_name":self.last_name,
             "email": self.email,
             "mobile_number": self.mobile_number,
             "image": self.employee_image,
