@@ -1,3 +1,4 @@
+from datetime import datetime
 from evalvue import settings
 import os
 from info import constant
@@ -133,10 +134,7 @@ def populateAddOrganizationData(res):
     res.city = city_data
 
 def convert_to_ist_time(sql_server_time):
-    ist_timezone = pytz.timezone('Asia/Kolkata')
-    sql_server_time_utc = sql_server_time.replace(tzinfo=pytz.utc)
-    ist_time = sql_server_time_utc.astimezone(ist_timezone)
-    formatted_time = ist_time.strftime("%d %B at %I:%M %p")
+    formatted_time = sql_server_time.strftime("%d %B at %I:%M %p")
     return formatted_time
 
 def extract_path(url):
