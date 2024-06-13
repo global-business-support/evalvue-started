@@ -30,7 +30,7 @@ from info import aadhar, organization, review
 from info import constant
 from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code
 from info.constant import *
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_employee, validate_organization, verify_password, extract_path, delete_file
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_employee, validate_employee_on_edit, validate_organization, verify_password, extract_path, delete_file
 from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password, extract_path, delete_file
 from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_file_extension, validate_file_size, validate_organization, verify_password
 from .employee import *
@@ -203,33 +203,15 @@ class CreateEmployeeAPIView(APIView):
                 res.user_id = user_id
                 res.organization_id = organization_id
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT EmployeeId, Name FROM Employee where AadharNumber = %s",[aadhar_number])
-                    employee_details_by_aadhar_number = cursor.fetchone()
-
-                    if employee_details_by_aadhar_number:
-                        employee_id_by_aadhar_number = employee_details_by_aadhar_number[0]
-                        employee_name_by_aadhar_number = employee_details_by_aadhar_number[1]
-                        cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_aadhar_number])
-                        organization_id_already_mapped = cursor.fetchone()[0]
-
-                        if organization_id_already_mapped:
-                            cursor.execute(" SELECT Name from Organization where OrganizationId = %s",[organization_id_already_mapped])
-                            organization_name = cursor.fetchone()[0]
-
-                            if organization_name:
-                                res.error = employee_already_mapped_to_organization.format(employee_name_by_aadhar_number)
-                                res.is_employee_register_successfull = False
-                            else:
-                                raise Exception(organization_name_not_found.format(organization_id_already_mapped))
-                        else:
-                            cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_by_aadhar_number,organization_id,1])
-                            res.is_employee_register_successfull = True
+                    if validate_employee(email,None,None,res) or validate_employee(None,mobile_number,None,res) or validate_employee(None,None,aadhar_number,res):
+                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     else:
                         is_image_valid = validate_file_extension(employee_image,res)
                         is_image_size_valid = validate_file_size(employee_image,res)
                         if is_image_valid and is_image_size_valid:
                             employee_image = save_image(employee_image_path,employee_image)
                         else:
+                            res.is_employee_register_successfull = False
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         cursor.execute("INSERT INTO Employee (Name, Email, MobileNumber, Image, AadharNumber, Designation, CreatedOn) VALUES (%s, %s, %s, %s, %s,%s, GETDATE())",[employee_name, email, mobile_number, employee_image, aadhar_number, designation])
                         cursor.execute("SELECT EmployeeId FROM Employee where AadharNumber = %s",[aadhar_number])
@@ -331,10 +313,15 @@ class CreateReviewAPIView(APIView):
                     res.error = 'Invalid comment'
                 if not res.is_review_added_successfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
-                if image:
-                    image = save_image(review_image_path,image)
+                is_image_valid = validate_file_extension(image,res)
+                is_image_size_valid = validate_file_size(image,res)
+                if is_image_valid and is_image_size_valid:
+                    review_image = save_image(review_image_path,image)
+                else:
+                    res.is_review_added_successfull = False
+                    return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 with connection.cursor() as cursor:
-                    cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,image,rating])
+                    cursor.execute("INSERT into Review(Comment, Image, Rating, CreatedOn) values(%s,%s,%s, GETDATE())",[comment,review_image,rating])
                     cursor.execute("SELECT max(ReviewId) from Review")
                     review_id_inserted_row = cursor.fetchone()
 
@@ -938,7 +925,7 @@ class EditEmployeeAPIview(APIView):
                 
                 if not res.employee_edit_sucessfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
-                if validate_employee(employee_id,employee_email,None,None,res) or validate_employee(employee_id,None,employee_phone,None,res):
+                if validate_employee_on_edit(employee_id,employee_email,None,None,res) or validate_employee_on_edit(employee_id,None,employee_phone,None,res):
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 with connection.cursor() as cursor:      
                     cursor.execute("SELECT Image FROM employee WHERE EmployeeId = %s", [employee_id])
@@ -982,12 +969,6 @@ class EmployeeEditableDataAPIView(APIView):
                 employee_id = data.get('employee_id')
                 logger.info(data)                
                 with connection.cursor() as cursor:
-                    # cursor.execute("select EmployeeId from EmployeeOrganizationMapping where OrganizationId = %s ORDER BY CreatedOn DESC",[organization_id])
-                    # employee_id_results = cursor.fetchall()
-                    # if employee_id_results:
-                    #     employee_list = []
-                    #     for employee_id_result in employee_id_results:
-                    #         employee_id = employee_id_result[0]
                     employee_list = []
                     cursor.execute("SELECT Name, Email, MobileNumber, Image, AadharNumber,Designation FROM Employee WHERE EmployeeId = %s", [employee_id])
                     employee_details = cursor.fetchall()
@@ -1027,16 +1008,6 @@ class OrganizationEditableDataAPIView(APIView):
             logger.info(data)
             res = response()
             with connection.cursor() as cursor:
-                # cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
-                # organization_details_by_user_id = cursor.fetchall()
-                # if organization_details_by_user_id:
-                #     res.is_organization_mapped = True
-                #     organization_id_list = []
-                #     organization_verified_dict = {}
-                #     for organization_detail in organization_details_by_user_id:
-                #         organization_id_list.append(str(organization_detail[0]))
-                #         organization_verified_dict[organization_detail[0]] = organization_detail[1]
-                #     strr = ','.join(organization_id_list)
                 cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId = %s",[organization_id])
                 organization_detail_list_by_id = cursor.fetchall()
                 print(organization_detail_list_by_id)

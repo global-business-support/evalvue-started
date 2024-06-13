@@ -101,7 +101,7 @@ def validate_file_extension(image,res):
 
 def validate_file_size(image,res):
     try:
-        file_size = 1024 * 1024 * 2
+        file_size = 1024 * 1024 * 2  #2MB file
         if image.size > file_size:
             res.is_file_validate = True
             res.error = constant.file_validation_size_error
@@ -145,7 +145,46 @@ def extract_path(url):
     extracted_path = '/'.join(parts[4:])
     return extracted_path
 
-def validate_employee(employee_id,email,mobile_number,aadhar_number,res):
+def validate_employee(email,mobile_number,aadhar_number,res):
+    if not mobile_number and not aadhar_number:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT EmployeeId, Name FROM Employee where Email = %s",[email])
+            employee_details_by_email = cursor.fetchone()
+            if employee_details_by_email:
+                employee_id_by_email = employee_details_by_email[0] 
+                cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_email])
+                organization_id_already_mapped = cursor.fetchone()
+                if organization_id_already_mapped:
+                    res.is_employee_register_successfull = False
+                    res.error = constant.employee_already_mapped_to_organization_by_email.format(email)
+                    return True
+    if not email and not aadhar_number:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT EmployeeId, Name FROM Employee where MobileNumber = %s",[mobile_number])
+            employee_details_by_mobile_number = cursor.fetchone()
+            if employee_details_by_mobile_number:
+                employee_id_by_mobile_number = employee_details_by_mobile_number[0] 
+                cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_mobile_number])
+                organization_id_already_mapped = cursor.fetchone()
+                if organization_id_already_mapped:
+                    res.is_employee_register_successfull = False
+                    res.error = constant.employee_already_mapped_to_organization_by_mobile_number.format(mobile_number)
+                    return True
+    if not email and not mobile_number:
+        print(aadhar_number)
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT EmployeeId, Name FROM Employee where AadharNumber = %s",[aadhar_number])
+            employee_details_by_aadhar_number = cursor.fetchone()
+            if employee_details_by_aadhar_number:
+                employee_id_by_aadhar_number = employee_details_by_aadhar_number[0]
+                cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_aadhar_number])
+                organization_id_already_mapped = cursor.fetchone()
+                if organization_id_already_mapped:
+                    res.is_employee_register_successfull = False
+                    res.error = constant.employee_already_mapped_to_organization_by_aadhar.format(aadhar_number)
+                    return True
+    
+def validate_employee_on_edit(employee_id,email,mobile_number,aadhar_number,res):
     if not mobile_number and not aadhar_number:
         with connection.cursor() as cursor:
             cursor.execute("SELECT Email from Employee WHERE EmployeeId != %s and Email = %s",[employee_id,email])
