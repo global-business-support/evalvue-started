@@ -870,15 +870,6 @@ class EditOrganizationAPIview(APIView):
                     cursor.execute("SELECT Image FROM employee WHERE OrganizationId = %s", [organization_id])
                     img = cursor.fetchone()
                     old_image = img[0]
-
-                    is_image_valid = validate_file_extension(employee_image,res)
-                    if is_image_valid:
-                        employee_image = save_image(employee_image_path,employee_image)
-                        file_path = extract_path(old_image)
-                        delete_file(file_path)     
-                    else:
-                        res.organization_edit_sucessfull = False
-                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
                     cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
                     res.user_id = user_id
@@ -908,7 +899,7 @@ class EditEmployeeAPIview(APIView):
                 employee_id = data.get("employee_id")
                 employee_name = capitalize_words(data.get("employee_name"))
                 employee_email = data.get("employee_email")
-                employee_phone = data.get("employee_phone")     
+                employee_phone = data.get("employee_phone")    
                 employee_designation = capitalize_words(data.get("employee_designation"))
                 employee_image = data.get("employee_image")
                 logger.info(data)
