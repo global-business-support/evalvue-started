@@ -226,3 +226,6 @@ LOGGING = {
         },
     },
 }
+
+
+database_root = 'http://test.api.evalvue.com/media/'
