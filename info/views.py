@@ -918,7 +918,6 @@ class EditEmployeeAPIview(APIView):
                 elif not validate_designation(designation):
                     res.employee_edit_sucessfull = False
                     res.error = 'Invalid designation'
-                
                 if not res.employee_edit_sucessfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 if validate_employee_on_edit(employee_id,email,None,None,res) or validate_employee_on_edit(employee_id,None,mobile_number,None,res):
@@ -932,8 +931,9 @@ class EditEmployeeAPIview(APIView):
                     is_image_size_valid = validate_file_size(employee_image,res)
                     if is_image_valid and is_image_size_valid:
                         employee_image = save_image(employee_image_path,employee_image)
-                        file_path = extract_path(old_image)
-                        delete_file(file_path) 
+                        if old_image:
+                            file_path = extract_path(old_image)
+                            delete_file(file_path)
                     else:
                         res.employee_edit_sucessfull = False
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
