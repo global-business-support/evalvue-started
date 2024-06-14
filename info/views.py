@@ -1030,11 +1030,11 @@ class OrganizationEditableDataAPIView(APIView):
                     org = organization()
                     org.organization_name = name
                     org.organization_image = image
-                    org.sector_id = sector_type_data[sector_id]['Name']
-                    org.listed_id = listed_type_data[listed_id]['Name']
-                    org.country_id = country_data[country_id]['Name']
-                    org.state_id = state_data[state_id]['Name']
-                    org.city_id = city_data[city_id]['Name']
+                    org.sector_id = sector_id
+                    org.listed_id = listed_id
+                    org.country_id = country_id
+                    org.state_id = state_id
+                    org.city_id = city_id
                     org.area = area
                     org.pincode = pincode
                     org.number_of_employee = numberofemployee
