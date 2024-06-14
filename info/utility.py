@@ -212,5 +212,6 @@ class CustomObject:
     def __init__(self, user_id, email):
         self.id = user_id
         self.email = email
+        
 
 
