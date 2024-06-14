@@ -867,7 +867,7 @@ class EditOrganizationAPIview(APIView):
                         organization_image = save_image(organization_image_path,organization_image)
                         image_path = extract_path(old_image)
                         delete_file(image_path)
-                    cursor.execute("SELECT Image FROM employee WHERE OrganizationId = %s", [organization_id])
+                    cursor.execute("SELECT Image FROM Organization WHERE OrganizationId = %s", [organization_id])
                     img = cursor.fetchone()
                     old_image = img[0]
                     
@@ -897,29 +897,31 @@ class EditEmployeeAPIview(APIView):
                 data = request.data
                 user_id = data.get("user_id")
                 employee_id = data.get("employee_id")
-                employee_name = capitalize_words(data.get("employee_name"))
-                employee_email = data.get("employee_email")
-                employee_phone = data.get("employee_phone")    
-                employee_designation = capitalize_words(data.get("employee_designation"))
+                first_name = capitalize_words(data.get('first_name'))
+                last_name = capitalize_words(data.get('last_name'))
+                email = data.get("email")
+                mobile_number = data.get("mobile_number")   
+                designation = capitalize_words(data.get("designation"))
                 employee_image = data.get("employee_image")
                 logger.info(data)
+                employee_name = first_name.strip() + " " + last_name.strip()
                 res.employee_edit_sucessfull = True
                 if not validate_name(employee_name):
                     res.employee_edit_sucessfull = False
                     res.error = 'Invalid Name'
-                elif not validate_email(employee_email):
+                elif not validate_email(email):
                     res.employee_edit_sucessfull = False
                     res.error = 'Invalid email'
-                elif not validate_mobile_number(employee_phone):
+                elif not validate_mobile_number(mobile_number):
                     res.employee_edit_sucessfull = False
                     res.error = 'Invalid mobile number'
-                elif not validate_designation(employee_designation):
+                elif not validate_designation(designation):
                     res.employee_edit_sucessfull = False
                     res.error = 'Invalid designation'
                 
                 if not res.employee_edit_sucessfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
-                if validate_employee_on_edit(employee_id,employee_email,None,None,res) or validate_employee_on_edit(employee_id,None,employee_phone,None,res):
+                if validate_employee_on_edit(employee_id,email,None,None,res) or validate_employee_on_edit(employee_id,None,mobile_number,None,res):
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 with connection.cursor() as cursor:      
                     cursor.execute("SELECT Image FROM employee WHERE EmployeeId = %s", [employee_id])
@@ -936,7 +938,7 @@ class EditEmployeeAPIview(APIView):
                         res.employee_edit_sucessfull = False
                         return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
-                    cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,employee_email,employee_phone,employee_designation,employee_image,employee_id])
+                    cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,email,mobile_number,designation,employee_image,employee_id])
                     res.employee_edit_sucessfull = True
                     res.user_id = user_id
                     res.employee_id = employee_id
@@ -1013,21 +1015,22 @@ class OrganizationEditableDataAPIView(APIView):
             logger.info(data)
             res = response()
             with connection.cursor() as cursor:
-                cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId = %s",[organization_id])
+                cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode,NumberOfEmployee from Organization where OrganizationId = %s",[organization_id])
                 organization_detail_list_by_id = cursor.fetchall()
                 print(organization_detail_list_by_id)
                 organization_detail_list = []
-                for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
+                for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,numberofemployee in organization_detail_list_by_id:
                     org = organization()
-                    org.name = name
-                    org.image = image
-                    org.sector_name = sector_type_data[sector_id]['Name']
-                    org.listed_name = listed_type_data[listed_id]['Name']
-                    org.country_name = country_data[country_id]['Name']
-                    org.state_name = state_data[state_id]['Name']
-                    org.city_name = city_data[city_id]['Name']
+                    org.organization_name = name
+                    org.organization_image = image
+                    org.sector_id = sector_type_data[sector_id]['Name']
+                    org.listed_id = listed_type_data[listed_id]['Name']
+                    org.country_id = country_data[country_id]['Name']
+                    org.state_id = state_data[state_id]['Name']
+                    org.city_id = city_data[city_id]['Name']
                     org.area = area
                     org.pincode = pincode
+                    org.number_of_employee = numberofemployee
                     # org.organization_verified = organization_verified_dict[id]
                     organization_detail_list.append(org.to_dict())
                 res.organization_list = organization_detail_list

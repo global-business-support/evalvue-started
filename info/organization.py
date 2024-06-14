@@ -13,6 +13,14 @@ class organization:
         self.pincode = None
         self.document_number = None
         self.organization_verified = None
+        self.organization_name = None
+        self.organization_image = None
+        self.sector_id = None
+        self.listed_id = None
+        self.country_id = None
+        self.state_id = None
+        self.city_id = None
+        self.number_of_employee = None
 
     def to_dict(self):
         organization = {}

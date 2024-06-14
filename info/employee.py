@@ -4,6 +4,7 @@ class employee:
         self.employee_id = None
         self.first_name = None
         self.last_name = None
+        self.employee_name = None
         self.email = None
         self.employee_image = None
         self.mobile_number = None
@@ -17,13 +18,13 @@ class employee:
             "employee_id": self.employee_id,
             "first_name":self.first_name,
             "last_name":self.last_name,
+            "employee_name":self.employee_name,
             "email": self.email,
             "mobile_number": self.mobile_number,
-            "image": self.employee_image,
+            "employee_image": self.employee_image,
             "designation":self.designation,
             "aadhar_number": self.aadhar_number,
             "average_rating": self.average_rating
-
         }
     # def convertToJSON(self):
     #     emp = {}
