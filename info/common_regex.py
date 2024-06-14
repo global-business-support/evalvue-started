@@ -31,7 +31,7 @@ def validate_aadhar_number(aadhar_number):
     return False
 
 def validate_comment(comment):
-    if re.match(r'^.{250,500}$',comment.strip()):
+    if re.match(r'(?s)^.{250,500}$',comment.strip()):
         return True
     return False
 

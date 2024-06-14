@@ -926,23 +926,30 @@ class EditEmployeeAPIview(APIView):
                     cursor.execute("SELECT Image FROM employee WHERE EmployeeId = %s", [employee_id])
                     img = cursor.fetchone()
                     old_image = img[0]
-
-                    is_image_valid = validate_file_extension(employee_image,res)
-                    is_image_size_valid = validate_file_size(employee_image,res)
-                    if is_image_valid and is_image_size_valid:
-                        employee_image = save_image(employee_image_path,employee_image)
-                        if old_image:
-                            file_path = extract_path(old_image)
-                            delete_file(file_path)
-                    else:
-                        res.employee_edit_sucessfull = False
-                        return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                    if not isinstance(employee_image, str):
+                        is_image_valid = validate_file_extension(employee_image,res)
+                        is_image_size_valid = validate_file_size(employee_image,res)
+                        if is_image_valid and is_image_size_valid:
+                            employee_image = save_image(employee_image_path,employee_image)
+                            if old_image:
+                                file_path = extract_path(old_image)
+                                delete_file(file_path)
+                        else:
+                            res.employee_edit_sucessfull = False
+                            return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                     
-                    cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,email,mobile_number,designation,employee_image,employee_id])
-                    res.employee_edit_sucessfull = True
-                    res.user_id = user_id
-                    res.employee_id = employee_id
-                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                        cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s,Image = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,email,mobile_number,designation,employee_image,employee_id])
+                        res.employee_edit_sucessfull = True
+                        res.user_id = user_id
+                        res.employee_id = employee_id
+                        return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                    else:
+                        cursor.execute("update [Employee] set Name = %s, Email = %s, MobileNumber = %s, Designation = %s, modifiedOn = GETDATE() WHERE EmployeeId = %s",[employee_name,email,mobile_number,designation,employee_id])
+                        res.employee_edit_sucessfull = True
+                        res.user_id = user_id
+                        res.employee_id = employee_id
+                        return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+
                 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
