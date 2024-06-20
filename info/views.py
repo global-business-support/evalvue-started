@@ -28,7 +28,7 @@ from django.db import connection,IntegrityError,transaction
 from evalvue import settings
 from info import aadhar, organization, review
 from info import constant
-from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code
+from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_document_number, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code
 from info.constant import *
 from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_employee, validate_employee_on_edit, validate_organization, verify_password, extract_path, delete_file
 from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password, extract_path, delete_file
@@ -621,7 +621,10 @@ class CreateOrganizationAPIview(APIView):
                 if not validate_organization_name(organization_name):
                     res.is_organization_register_successfull = False
                     res.error = 'Invalid organization name'
-                elif not validate_gstin(gstin):
+                elif not validate_document_number(document_number):
+                    res.is_organization_register_successfull = False
+                    res.error = 'Invalid document number'
+                elif not validate_gstin(str(gstin)):
                     res.is_organization_register_successfull = False
                     res.error = 'Invalid GSTIN number'
                 elif not validate_pin_code(pincode):
@@ -709,7 +712,7 @@ class DashboardFeedAPIview(APIView):
             res = response()
             res.user_id = user_id
             with connection.cursor() as cursor:
-                cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation,org.Image,emp.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC")
+                cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,r.Image,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation,org.Image,emp.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC")
                 rows = cursor.fetchall()
                 reviews = []
                 if rows:
@@ -721,13 +724,14 @@ class DashboardFeedAPIview(APIView):
                         rev.comment = row[1]
                         rev.rating = row[2]
                         rev.created_on = formatted_time
-                        rev.organization_id = row[4]
-                        rev.organization_name = row[5]
-                        rev.employee_id = row[6]
-                        rev.employee_name = row[7]
-                        rev.designation = row[8]
-                        rev.organization_image = row[9]
-                        rev.employee_image = row[10]
+                        rev.image = row[4]
+                        rev.organization_id = row[5]
+                        rev.organization_name = row[6]
+                        rev.employee_id = row[7]
+                        rev.employee_name = row[8]
+                        rev.designation = row[9]
+                        rev.organization_image = row[10]
+                        rev.employee_image = row[11]
                         reviews.append(rev.to_dict())
                     res.dashboard_list = reviews
                     res.is_review_mapped = True
@@ -757,9 +761,8 @@ class SearchByAadharAPIview(APIView):
             res = response()
             aadhar_number = '%'+ aadhar_number + '%'
             with connection.cursor() as cursor:
-                cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.organizationId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s",[aadhar_number])
+                cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.OrganizationId,eom.StatusId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s",[aadhar_number])
                 rows = cursor.fetchall()
-                print(rows)
                 employees = []
                 if rows:
                     for row in rows:
@@ -773,8 +776,9 @@ class SearchByAadharAPIview(APIView):
                         adh.created_on = row[6]
                         adh.designation = row[7]
                         adh.organization_id = row[8]
-                        adh.organization_name = row[9]
-                        adh.organization_image = row[10]
+                        adh.status_id = row[9]
+                        adh.organization_name = row[10]
+                        adh.organization_image = row[11]
                         employees.append(adh.to_dict())
                     res.employees_list_by_aadhar = employees
                     res.employees_mapped_to_aadhar = True
@@ -861,21 +865,28 @@ class EditOrganizationAPIview(APIView):
                     cursor.execute("SELECT Image FROM Organization WHERE OrganizationId = %s", [organization_id])
                     result = cursor.fetchone()
                     old_image = result[0]
-                    is_image_valid = validate_file_extension(organization_image,res)
-                    is_image_size_valid = validate_file_size(organization_image,res)
-                    if is_image_valid and is_image_size_valid:
-                        organization_image = save_image(organization_image_path,organization_image)
-                        image_path = extract_path(old_image)
-                        delete_file(image_path)
-                    cursor.execute("SELECT Image FROM Organization WHERE OrganizationId = %s", [organization_id])
-                    img = cursor.fetchone()
-                    old_image = img[0]
-                    
-                    cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
-                    res.user_id = user_id
-                    res.organization_id = organization_id
-                    res.organization_edit_sucessfull = True
-                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                    if not isinstance(organization_image, str):
+                        is_image_valid = validate_file_extension(organization_image,res)
+                        is_image_size_valid = validate_file_size(organization_image,res)
+                        if is_image_valid and is_image_size_valid:
+                            organization_image = save_image(organization_image_path,organization_image)
+                            if old_image:
+                                image_path = extract_path(old_image)
+                                delete_file(image_path)
+                        else:
+                            res.organization_edit_sucessfull = False
+                            return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
+                        cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                        res.user_id = user_id
+                        res.organization_id = organization_id
+                        res.organization_edit_sucessfull = True
+                        return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                    else:
+                        cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                        res.user_id = user_id
+                        res.organization_id = organization_id
+                        res.organization_edit_sucessfull = True
+                        return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.organization_edit_sucessfull = False

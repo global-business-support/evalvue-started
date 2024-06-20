@@ -45,6 +45,11 @@ def validate_organization_name(organization_name):
         return True
     return False
 
+def validate_document_number(document_number):
+    if len(document_number.strip())<=50:
+        return True
+    return False
+
 def validate_pin_code(pincode):
     if re.match(r"^[1-9][0-9]{5}$",pincode.strip()):
         return True
