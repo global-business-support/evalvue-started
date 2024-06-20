@@ -9,6 +9,7 @@ class aadhar:
         self.aadhar_number = None
         self.designation = None
         self.created_on = None
+        self.status_id = None
         self.organization_id = None
         self.organization_name = None
         self.organization_image = None
