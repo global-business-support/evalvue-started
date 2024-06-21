@@ -773,7 +773,7 @@ class SearchByAadharAPIview(APIView):
                         adh.mobile_number = row[3]
                         adh.employee_image = row[4]
                         adh.aadhar_number = row[5]
-                        adh.created_on = row[6]
+                        adh.created_on = convert_to_ist_time(row[6])
                         adh.designation = row[7]
                         adh.organization_id = row[8]
                         adh.status_id = row[9]
@@ -1081,7 +1081,7 @@ class TerminateEmployeeAPIView(APIView):
                 logger.info(data)
                 res = response()
                 with connection.cursor() as cursor:
-                    cursor.execute("Update EmployeeOrganizationMapping set StatusId = %s Where EmployeeId = %s and OrganizationId = %s",[0,employee_id,organization_id])
+                    cursor.execute("Update EmployeeOrganizationMapping set StatusId = %s Where EmployeeId = %s and OrganizationId = %s",[2,employee_id,organization_id])
                     res.is_employee_terminated_successfull = True
                     res.user_id = user_id
                     res.organization_id = organization_id
