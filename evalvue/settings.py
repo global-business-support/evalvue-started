@@ -123,7 +123,7 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'testdb',
+        'NAME': 'prod_db',
         'USER': 'SA',
         'PASSWORD': 'welcome4U@',
         'HOST': '93.127.185.167',
