@@ -40,9 +40,10 @@ class response:
         self.is_top_employee = None
         self.employee_edit_sucessfull = None
         self.organization_edit_sucessfull = None
-
-
-
+        self.organization_is_verified = None
+        self.organization_verification = None
+        self.is_document_verification_data_successfull = None
+        self.is_organization_verified_successfull = None
         
         self.refresh = None
         self.employee_editable_data_send_successfull = None
