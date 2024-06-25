@@ -264,6 +264,21 @@ def get_cached_review_data():
 def refresh_review_data():
     fetch_review_data_from_db()
 
+referral_codes_data={}
+def fetch_referral_codes_data_from_db():
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT ReferralCode,ReferralName From Referral")
+        referral_data = cursor.fetchall()
+        for ReferralCode,ReferralName in referral_data:
+            referral_codes_data[ReferralCode] = ReferralName
+        print(referral_codes_data)
+def get_cached_referral_codes_data():
+    return referral_codes_data
+def refresh_referral_codes_data():
+    fetch_referral_codes_data_from_db
+
+
+
 
 
 

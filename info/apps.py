@@ -22,6 +22,7 @@ class MyAppConfig(AppConfig):
         fetch_employee_organization_mapping_data_from_db()
         fetch_status_data_from_db()
         fetch_review_data_from_db()
+        fetch_referral_codes_data_from_db()
 
         
 

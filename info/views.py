@@ -28,7 +28,7 @@ from django.db import connection,IntegrityError,transaction
 from evalvue import settings
 from info import aadhar, organization, review
 from info import constant
-from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_document_number, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code
+from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_document_number, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code, validate_referral_code
 from info.constant import *
 from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_employee, validate_employee_on_edit, validate_organization, verify_password, extract_path, delete_file
 from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password, extract_path, delete_file
@@ -59,7 +59,6 @@ class CreateUserAPIView(APIView):
             with transaction.atomic():
                 data = request.data
                 name = capitalize_words(data.get('name'))
-                print(name)
                 email = data.get('email')
                 mobile_number = data.get('mobile_number')
                 password = data.get('password')
@@ -117,8 +116,8 @@ class EmployeeAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
                 logger.info(data)
                 res.is_employee_mapped_to_organization_successfull = False
@@ -165,8 +164,8 @@ class CreateEmployeeAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
                 first_name = capitalize_words(data.get('first_name'))
                 last_name = capitalize_words(data.get('last_name'))
@@ -297,9 +296,8 @@ class CreateReviewAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
-                # user_idd = getattr(request, 'user_id', None)
+                user_id = getattr(request, 'user_id', None)
                 data = request.data 
-                user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
                 employee_id = data.get('employee_id')
                 comment = data.get('comment')
@@ -356,8 +354,8 @@ class ReviewAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data 
-                user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
                 employee_id = data.get('employee_id')
                 logger.info(data)
@@ -544,8 +542,8 @@ class OrganizationAPIView(APIView):
     @csrf_exempt
     def post(self,request):
         try:
+            user_id = getattr(request, 'user_id', None)
             data = request.data
-            user_id = data.get('user_id')
             logger.info(data)
             res = response()
             res.user_id = user_id
@@ -600,8 +598,8 @@ class CreateOrganizationAPIview(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get("user_id")
                 organization_name = capitalize_words(data.get("organization_name"))
                 organization_image = data.get("organization_image")
                 document_type_id = data.get("document_type_id")
@@ -616,6 +614,7 @@ class CreateOrganizationAPIview(APIView):
                 pincode = data.get("pincode")
                 number_of_employee = data.get("number_of_employee")
                 document_file = data.get("document_file")
+                referral_code = data.get("referral_code")
                 logger.info(data)
                 res.is_organization_register_successfull = True
                 if not validate_organization_name(organization_name):
@@ -630,7 +629,10 @@ class CreateOrganizationAPIview(APIView):
                 elif not validate_pin_code(pincode):
                     res.is_organization_register_successfull = False
                     res.error = 'Invalid pincode'
-            
+                elif not validate_referral_code(referral_code):
+                    res.is_organization_register_successfull = False
+                    res.error = 'Invalid referral code'
+
                 if not res.is_organization_register_successfull:
                     return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                 
@@ -653,10 +655,14 @@ class CreateOrganizationAPIview(APIView):
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                         cursor.execute("Insert into Organization(Name,Image,DocumentTypeId,DocumentNumber,GSTIN,SectorId,ListedId,CountryId,StateId,CityId,Area,PinCode,DocumentFile,NumberOfEmployee,CreatedOn) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,GETDATE())",
                                     [organization_name,organization_image,document_type_id,document_number,gstin,sector_id,listed_id,country_id,state_id,city_id,area,pincode,document_file,number_of_employee])
-                        cursor.execute("Select OrganizationId from Organization where DocumentNumber = %s",[document_number])
+                        cursor.execute("Select OrganizationId,Name from Organization where DocumentNumber = %s",[document_number])
                         organization_details = cursor.fetchone()
                         organization_id = organization_details[0]
+                        organization_name = organization_details[1]
                         cursor.execute("Insert into UserOrganizationMapping(UserId, OrganizationId, IsVerified,CreatedOn) values (%s,%s,%s,GETDATE())",[user_id,organization_id,0])
+                        if referral_code in referral_codes_data:
+                            cursor.execute("INSERT INTO ReferralOrganizationMapping(Code,Name,OrganizationId,OrganizationName,CreatedOn) VALUES(%s,%s,%s,%s,GETDATE())",[referral_code,referral_codes_data[referral_code],organization_id,organization_name])
+
                         res.is_organization_register_successfull = True
                         res.user_id = user_id
                         res.organization_id = organization_id
@@ -680,8 +686,8 @@ class CreateOrganizationAPIview(APIView):
 class AddOrganizationAPIview(APIView):
     @csrf_exempt
     def post(self, request):
+        user_id = getattr(request, 'user_id', None)
         data = request.data
-        user_id = data.get('user_id')
         logger.info(data)
         res = response()
         res.user_id = user_id
@@ -706,8 +712,8 @@ class DashboardFeedAPIview(APIView):
     @csrf_exempt
     def post(self,request):
         try:
+            user_id = getattr(request, 'user_id', None)
             data = request.data
-            user_id = data.get('user_id')
             logger.info(data)
             res = response()
             res.user_id = user_id
@@ -799,9 +805,9 @@ class SearchByAadharAPIview(APIView):
 
 class TopFiveEmployeeAPIview(APIView):
     def post(self,request):
+        user_id = getattr(request, 'user_id', None)
         data = request.data
         logger.info(data)
-        user_id = data.get("user_id")
         res = response()
         try:
             with connection.cursor() as cursor:
@@ -838,8 +844,8 @@ class EditOrganizationAPIview(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get("user_id")
                 organization_id = data.get("organization_id")
                 organization_name = capitalize_words(data.get("organization_name"))
                 organization_image = data.get("organization_image")
@@ -905,8 +911,8 @@ class EditEmployeeAPIview(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get("user_id")
                 employee_id = data.get("employee_id")
                 first_name = capitalize_words(data.get('first_name'))
                 last_name = capitalize_words(data.get('last_name'))
@@ -980,8 +986,8 @@ class EmployeeEditableDataAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get('user_id')
                 employee_id = data.get('employee_id')
                 logger.info(data)                
                 with connection.cursor() as cursor:
@@ -1027,15 +1033,14 @@ class OrganizationEditableDataAPIView(APIView):
     @csrf_exempt
     def post(self,request):
         try:
+            user_id = getattr(request, 'user_id', None)
             data = request.data
-            user_id = data.get('user_id')
             organization_id = data.get('organization_id')
             logger.info(data)
             res = response()
             with connection.cursor() as cursor:
                 cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode,NumberOfEmployee from Organization where OrganizationId = %s",[organization_id])
                 organization_detail_list_by_id = cursor.fetchall()
-                print(organization_detail_list_by_id)
                 organization_detail_list = []
                 for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,numberofemployee in organization_detail_list_by_id:
                     org = organization()
@@ -1074,8 +1079,8 @@ class TerminateEmployeeAPIView(APIView):
         res = response()
         try:
             with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
                 data = request.data
-                user_id = data.get('user_id')
                 organization_id = data.get('organization_id')
                 employee_id = data.get('employee_id')
                 logger.info(data)
@@ -1098,4 +1103,5 @@ class TerminateEmployeeAPIView(APIView):
             res.is_employee_terminated_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
