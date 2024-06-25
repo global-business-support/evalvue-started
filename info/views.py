@@ -1105,3 +1105,78 @@ class TerminateEmployeeAPIView(APIView):
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+class DocumentVerificationDataAPIview(APIView):
+    @csrf_exempt
+    def post(self, request):
+        data = request.data
+        user_id = data.get('user_id')
+        logger.info(data)
+        res = response()
+        res.user_id = user_id
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId WHERE uom.IsVerified = 0;")
+                rows = cursor.fetchall()
+                organization_data = []
+                if rows:
+                    for row in rows:
+                        org = organization()
+                        org.organization_id = row[0]
+                        org.name = row[1]
+                        org.document_name = document_type_data[row[2]]['Name']
+                        org.document_number = row[3]
+                        org.document_file = row[4]
+                        org.sector_name = sector_type_data[row[5]]['Name']
+                        org.listed_name = listed_type_data[row[6]]['Name']
+                        org.image = row[7]
+                        org.date_time = convert_to_ist_time(row[8])
+                        org.gstin = row[9]
+                        org.number_of_employee = row[10]
+                        org.country_Name = country_data[row[11]]['Name']
+                        org.state_Name = state_data[row[12]]['Name']
+                        org.city_Name = city_data[row[13]]['Name']
+                        org.area = row[14]
+                        org.pincode = row[15]
+                        organization_data.append(org.to_dict())
+                    res.organization_verification = organization_data
+                    res.is_document_verification_data_successfull = True
+                else:
+                    res.is_document_verification_data_successfull = False
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_document_verification_data_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_document_verification_data_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class verifyOrganizationAPIview(APIView):
+    def post(self, request):
+        data = request.data
+        user_id = data.get("user_id")
+        organization_id = data.get('organization_id')
+        logger.info(data)
+        res = response()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("update [UserOrganizationMapping] set Isverified = 1 WHERE OrganizationId = %s and UserId = %s",[organization_id,user_id])
+                res.is_organization_verified_successfull = True
+                return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_organization_verified_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_organization_verified_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)

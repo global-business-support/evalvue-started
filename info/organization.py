@@ -4,6 +4,7 @@ class organization:
         self.organization_id = None
         self.name = None
         self.image = None
+        self.document_name = None
         self.sector_name = None
         self.listed_name = None
         self.country_name = None
@@ -21,6 +22,10 @@ class organization:
         self.state_id = None
         self.city_id = None
         self.number_of_employee = None
+        self.document_type_id = None
+        self.document_file = None
+        self.date_time = None
+        self.gstin = None
 
     def to_dict(self):
         organization = {}
