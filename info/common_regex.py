@@ -1,4 +1,7 @@
 import re
+from django.db import connection,IntegrityError,transaction
+from .cache import *
+
 
 def validate_name(name):
     if re.match(r"^(?=.{2,50}$)[a-zA-Z]+(?:[ '-][a-zA-Z]+)*$",name.strip()):
@@ -62,3 +65,11 @@ def validate_gstin(gstin):
         return True
     return False
 
+def validate_referral_code(referral_code):
+    if referral_code is None or len(referral_code)<1:
+        return True
+    if re.match(r"^[0-9][0-9]{5}$",referral_code.strip()) and referral_code in referral_codes_data:
+        return True
+    return False
+
+    
