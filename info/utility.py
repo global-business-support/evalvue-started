@@ -169,7 +169,6 @@ def validate_employee(email,mobile_number,aadhar_number,res):
                     res.error = constant.employee_already_mapped_to_organization_by_mobile_number.format(mobile_number)
                     return True
     if not email and not mobile_number:
-        print(aadhar_number)
         with connection.cursor() as cursor:
             cursor.execute("SELECT EmployeeId, Name FROM Employee where AadharNumber = %s",[aadhar_number])
             employee_details_by_aadhar_number = cursor.fetchone()

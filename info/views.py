@@ -1165,7 +1165,7 @@ class verifyOrganizationAPIview(APIView):
         res = response()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("update [UserOrganizationMapping] set Isverified = 1 WHERE OrganizationId = %s and UserId = %s",[organization_id,user_id])
+                cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s and UserId = %s",[1,organization_id,user_id])
                 res.is_organization_verified_successfull = True
                 return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                 
@@ -1180,3 +1180,5 @@ class verifyOrganizationAPIview(APIView):
             res.is_organization_verified_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
