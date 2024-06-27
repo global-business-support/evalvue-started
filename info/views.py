@@ -1115,7 +1115,7 @@ class DocumentVerificationDataAPIview(APIView):
         res.user_id = user_id
         try:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId WHERE uom.IsVerified = 0;")
+                cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId WHERE uom.IsVerified = 0")
                 rows = cursor.fetchall()
                 organization_data = []
                 if rows:
@@ -1132,9 +1132,9 @@ class DocumentVerificationDataAPIview(APIView):
                         org.date_time = convert_to_ist_time(row[8])
                         org.gstin = row[9]
                         org.number_of_employee = row[10]
-                        org.country_Name = country_data[row[11]]['Name']
-                        org.state_Name = state_data[row[12]]['Name']
-                        org.city_Name = city_data[row[13]]['Name']
+                        org.country_name = country_data[row[11]]['Name']
+                        org.state_name = state_data[row[12]]['Name']
+                        org.city_name = city_data[row[13]]['Name']
                         org.area = row[14]
                         org.pincode = row[15]
                         organization_data.append(org.to_dict())
@@ -1165,7 +1165,7 @@ class verifyOrganizationAPIview(APIView):
         res = response()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s and UserId = %s",[1,organization_id,user_id])
+                cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s",[1,organization_id])
                 res.is_organization_verified_successfull = True
                 return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                 
