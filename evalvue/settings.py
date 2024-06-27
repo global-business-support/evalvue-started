@@ -120,6 +120,7 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+database_media = 'http://test.api.evalvue.com/media/'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
@@ -228,4 +229,3 @@ LOGGING = {
 }
 
 
-database_media = 'http://test.api.evalvue.com/media/'

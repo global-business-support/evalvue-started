@@ -420,6 +420,8 @@ class ShootOtpAPIView(APIView):
             with transaction.atomic():
                 data = request.data 
                 email = data.get("email")
+                user_verification = data.get("user_verification")
+                employee_verification = data.get("employee_verification")
                 logger.info(data)
                 res.otp_send_successfull = False
                 if not validate_email(email):
@@ -427,9 +429,13 @@ class ShootOtpAPIView(APIView):
                     res.error = 'Invalid email'
                 else:
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT UserId, Email from [User] where email = %s",[email])
-                        email_result = cursor.fetchone()
-                        if email_result:
+                        if employee_verification:
+                            cursor.execute("SELECT EmployeeId, Email from [Employee] where email = %s",[email])
+                            employee_email_result = cursor.fetchone()
+                        elif user_verification:
+                            cursor.execute("SELECT UserId, Email from [User] where email = %s",[email])
+                            email_result = cursor.fetchone()
+                        if employee_email_result or email_result:
                             otp_number = ''.join(random.choices('0123456789', k=6))
                             cursor.execute("INSERT into [OTP] (Email, OtpNumber, Is_Verified, CreatedOn) VALUES(%s,%s,%s,GETDATE())",[email_result[1], otp_number,False])
 
@@ -462,6 +468,10 @@ class VerifyOtpAPIView(APIView):
                 user_id = data.get("user_id")
                 email = data.get("email")
                 otp_number = data.get("otp_number")
+                user_verification = data.get("user_verification")
+                employee_verification = data.get("employee_verification")
+                employee_id = data.get("employee_id")
+                organization_id = data.get("organization_id")
                 logger.info(data)
                 res.otp_verified_successfull = False
                 if not validate_otp(otp_number):
@@ -478,7 +488,6 @@ class VerifyOtpAPIView(APIView):
                         sql_server_time = cursor.fetchone()[0]
                         created_on = otp_result[1]
                         created_time = datetime.strptime(str(created_on), '%Y-%m-%d %H:%M:%S.%f')  # Convert created_time string to datetime object
-
                         expiration_time = created_time + timedelta(minutes=2)
                         if sql_server_time > expiration_time:
                             res.otp_is_expired = True
@@ -487,8 +496,14 @@ class VerifyOtpAPIView(APIView):
                             res.incorrect_otp = True
                             res.user_id = user_id
                         elif otp_result[0] == otp_number:
+                            if user_verification:
+                                cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
+                                #hit to payment
+                                res.is_user_verified_successfull = True
+                            elif employee_verification:
+                                cursor.execute("INSERT INTO EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id,organization_id,1])
+                                res.is_terminated_employee_added_successfull = True
                             res.otp_verified_successfull = True
-                            cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
                             res.is_email_verified_successfull = True
                             res.email = email
                             res.user_id = user_id
@@ -1104,7 +1119,6 @@ class TerminateEmployeeAPIView(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
 class DocumentVerificationDataAPIview(APIView):
     @csrf_exempt
     def post(self, request):
@@ -1156,7 +1170,7 @@ class DocumentVerificationDataAPIview(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class verifyOrganizationAPIview(APIView):
+class VerifyOrganizationAPIview(APIView):
     def post(self, request):
         data = request.data
         user_id = data.get("user_id")

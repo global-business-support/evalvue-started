@@ -44,11 +44,13 @@ class response:
         self.organization_verification = None
         self.is_document_verification_data_successfull = None
         self.is_organization_verified_successfull = None
+        self.is_user_verified_successfull = None
         
         self.refresh = None
         self.employee_editable_data_send_successfull = None
         self.organization_editable_data_send_succesfull = None
-        self.is_employee_terminated_successfull = None
+        self.is_employee_terminated_successfull = None 
+        self.is_terminated_employee_added_successfull = None
 
     def convertToJSON(self):
         res = {}
