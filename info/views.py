@@ -429,6 +429,8 @@ class ShootOtpAPIView(APIView):
                     res.error = 'Invalid email'
                 else:
                     with connection.cursor() as cursor:
+                        employee_email_result = None
+                        email_result = None
                         if employee_verification:
                             cursor.execute("SELECT EmployeeId, Email from [Employee] where email = %s",[email])
                             employee_email_result = cursor.fetchone()
