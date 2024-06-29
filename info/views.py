@@ -429,15 +429,13 @@ class ShootOtpAPIView(APIView):
                     res.error = 'Invalid email'
                 else:
                     with connection.cursor() as cursor:
-                        employee_email_result = None
-                        email_result = None
                         if employee_verification:
                             cursor.execute("SELECT EmployeeId, Email from [Employee] where email = %s",[email])
-                            employee_email_result = cursor.fetchone()
+                            email_result = cursor.fetchone()
                         elif user_verification:
                             cursor.execute("SELECT UserId, Email from [User] where email = %s",[email])
                             email_result = cursor.fetchone()
-                        if employee_email_result or email_result:
+                        if email_result:
                             otp_number = ''.join(random.choices('0123456789', k=6))
                             cursor.execute("INSERT into [OTP] (Email, OtpNumber, Is_Verified, CreatedOn) VALUES(%s,%s,%s,GETDATE())",[email_result[1], otp_number,False])
 
