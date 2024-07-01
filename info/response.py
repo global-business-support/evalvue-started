@@ -45,6 +45,8 @@ class response:
         self.is_document_verification_data_successfull = None
         self.is_organization_verified_successfull = None
         self.is_user_verified_successfull = None
+        self.organizations_paid_count = None
+
         
         self.refresh = None
         self.employee_editable_data_send_successfull = None

@@ -358,6 +358,7 @@ class ReviewAPIView(APIView):
                 data = request.data 
                 organization_id = data.get('organization_id')
                 employee_id = data.get('employee_id')
+                search_by_aa = data.get('search_by_aa')
                 logger.info(data)
                 res.is_review_mapped_to_employee_successfull = True
 
@@ -374,9 +375,12 @@ class ReviewAPIView(APIView):
                     emp.aadhar_number = employee_details[5]
                     emp.designation = employee_details[6]
                     employee_list.append(emp.to_dict())
-
-                    cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s and OrganizationId = %s ORDER BY CreatedOn DESC",[employee_id,organization_id])
-                    review_id_results = cursor.fetchall()
+                    if search_by_aa:
+                        cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s ORDER BY CreatedOn DESC",[employee_id])
+                        review_id_results = cursor.fetchall()
+                    else:
+                        cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s and OrganizationId = %s ORDER BY CreatedOn DESC",[employee_id,organization_id])
+                        review_id_results = cursor.fetchall()
                     if review_id_results:
                         review_list = []
                         for review_id_result in review_id_results:
@@ -498,6 +502,7 @@ class VerifyOtpAPIView(APIView):
                         elif otp_result[0] == otp_number:
                             if user_verification:
                                 cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
+
                                 #hit to payment
                                 res.is_user_verified_successfull = True
                             elif employee_verification:
@@ -563,15 +568,19 @@ class OrganizationAPIView(APIView):
             res = response()
             res.user_id = user_id
             with connection.cursor() as cursor:
-                cursor.execute("select OrganizationId, IsVerified from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
+                cursor.execute("select OrganizationId, IsVerified,IsPaid from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
                 organization_details_by_user_id = cursor.fetchall()
                 if organization_details_by_user_id:
                     res.is_organization_mapped = True
+                    cursor.execute("SELECT COUNT(*) FROM [UserOrganizationMapping] WHERE UserId = %s AND IsPaid = 1;",[user_id])
+                    organizations_paid_count = cursor.fetchone()[0]
                     organization_id_list = []
                     organization_verified_dict = {}
+                    organization_paid_dict = {}
                     for organization_detail in organization_details_by_user_id:
                         organization_id_list.append(str(organization_detail[0]))
                         organization_verified_dict[organization_detail[0]] = organization_detail[1]
+                        organization_paid_dict[organization_detail[0]] = organization_detail[2]
                     strr = ','.join(organization_id_list)
                     cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, DocumentNumber,CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
                     organization_detail_list_by_id = cursor.fetchall()
@@ -590,8 +599,10 @@ class OrganizationAPIView(APIView):
                         org.area = area
                         org.pincode = pincode
                         org.organization_verified = organization_verified_dict[id]
+                        org.organization_paid = organization_paid_dict[id]
                         organization_detail_list.append(org.to_dict())
                     res.organization_list = organization_detail_list
+                    res.organizations_paid_count = organizations_paid_count
                     return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
                 else: 
                     res.is_organization_mapped = False
@@ -782,7 +793,7 @@ class SearchByAadharAPIview(APIView):
             res = response()
             aadhar_number = '%'+ aadhar_number + '%'
             with connection.cursor() as cursor:
-                cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.OrganizationId,eom.StatusId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s",[aadhar_number])
+                cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.OrganizationId,eom.StatusId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s AND eom.EmployeeOrganizationMappingId = (SELECT TOP 1 eom_inner.EmployeeOrganizationMappingId FROM EmployeeOrganizationMapping eom_inner WHERE eom_inner.EmployeeId = emp.EmployeeId ORDER BY eom_inner.EmployeeOrganizationMappingId DESC)",[aadhar_number])
                 rows = cursor.fetchall()
                 employees = []
                 if rows:
