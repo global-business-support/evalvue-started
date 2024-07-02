@@ -376,25 +376,27 @@ class ReviewAPIView(APIView):
                     emp.designation = employee_details[6]
                     employee_list.append(emp.to_dict())
                     if search_by_aa:
-                        cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s ORDER BY CreatedOn DESC",[employee_id])
-                        review_id_results = cursor.fetchall()
+                        cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,r.Image,org.OrganizationId,org.Name,org.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId where rem.EmployeeId = %s",[employee_id])
+                        rows = cursor.fetchall()
                     else:
-                        cursor.execute("SELECT ReviewId from ReviewEmployeeOrganizationMapping Where EmployeeId = %s and OrganizationId = %s ORDER BY CreatedOn DESC",[employee_id,organization_id])
-                        review_id_results = cursor.fetchall()
-                    if review_id_results:
+                        cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,r.Image,org.OrganizationId,org.Name,org.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId where rem.EmployeeId = %s and rem.OrganizationId = %s",[employee_id,organization_id])
+                        rows = cursor.fetchall()
+                    
+                    if rows:
                         review_list = []
-                        for review_id_result in review_id_results:
-                            review_id = review_id_result[0]
-                            cursor.execute("SELECT ReviewId, Comment, Image, Rating, CreatedOn from Review where ReviewId = %s",[review_id])
-                            reviews_details = cursor.fetchall()
-                            for rev_id, rev_comment, rev_image, rev_rating,rev_created_on in reviews_details:
-                                rev = review()
-                                rev.review_id = rev_id
-                                rev.comment = rev_comment
-                                rev.image = rev_image
-                                rev.rating = rev_rating
-                                rev.created_on = convert_to_ist_time(rev_created_on)
-                                review_list.append(rev.to_dict())
+                        for row in rows:
+                            sql_server_time = row[3]
+                            formatted_time = convert_to_ist_time(sql_server_time)
+                            rev = review()
+                            rev.review_id = row[0]
+                            rev.comment = row[1]
+                            rev.rating = row[2]
+                            rev.created_on = formatted_time
+                            rev.image = row[4]
+                            rev.organization_id = row[5]
+                            rev.organization_name = row[6]
+                            rev.organization_image = row[7]
+                            review_list.append(rev.to_dict())
                         res.is_review_mapped_to_employee_successfull = True
                         res.review_list = review_list
                         res.employee_id = employee_id
