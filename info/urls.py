@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .views import DocumentVerificationDataAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview
+from .views import DocumentVerificationDataAPIview, SubscribeAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview
 from .views import CreateEmployeeAPIView, CreateReviewAPIView, CreateUserAPIView, DashboardFeedAPIview, EmployeeAPIView, EmployeeEditableDataAPIView, OrganizationEditableDataAPIView, SearchByAadharAPIview, ShootOtpAPIView, LoginUserAPIView, ReviewAPIView, TerminateEmployeeAPIView, UpdatePasswordAPIView, VerifyOtpAPIView,OrganizationAPIView,CreateOrganizationAPIview,AddOrganizationAPIview
 urlpatterns = [
     path('create/user/', CreateUserAPIView.as_view(), name='create_user'),
@@ -23,7 +23,9 @@ urlpatterns = [
     path('employee/editable/data/',EmployeeEditableDataAPIView.as_view(), name='employee_editable_data'),
     path('organization/editable/data/',OrganizationEditableDataAPIView.as_view(), name='organization_editable_data'),
     path('terminate/employee/',TerminateEmployeeAPIView.as_view(), name='terminate_employee'),
-    path('document/verification/data/', DocumentVerificationDataAPIview.as_view(), name = 'verify_organization'),
-    path('verify/organization/', VerifyOrganizationAPIview.as_view(), name = 'sucessfully_verified')
+    path('document/verification/data/', DocumentVerificationDataAPIview.as_view(), name = 'document_verification_data'),
+    path('verify/organization/', VerifyOrganizationAPIview.as_view(), name = 'verify_organization'),
+    path('create/subscription/id/', SubscribeAPIview.as_view(), name = 'create_subscription_id')
+
 
 ]

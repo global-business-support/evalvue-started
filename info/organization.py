@@ -15,6 +15,7 @@ class organization:
         self.document_number = None
         self.organization_verified = None
         self.organization_paid = None
+        self.organization_rejected = None
         self.organization_name = None
         self.organization_image = None
         self.sector_id = None
