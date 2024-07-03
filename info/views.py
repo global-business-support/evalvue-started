@@ -26,7 +26,7 @@ import random
 from datetime import datetime, timedelta
 from django.db import connection,IntegrityError,transaction
 from evalvue import settings
-from info import aadhar, organization, review
+from info import aadhar, organization, payment, review
 from info import constant
 from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_document_number, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code, validate_referral_code
 from info.constant import *
@@ -38,6 +38,7 @@ from .organization import *
 from .response import *
 from .review import *
 from . aadhar import *
+from .payment import *
 import logging
 from .cache import *
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -88,8 +89,8 @@ class CreateUserAPIView(APIView):
                         res.error = 'User Alreary Exists with this Email and Mobile Number'
                     else:
                         password = hash_password(password, salt)
-                        cursor.execute("INSERT INTO [User] (Name, Email, MobileNumber, Password, CreatedOn,IsVerified) VALUES (%s, %s, %s, %s,GETDATE(),%s)",
-                                    [name, email, mobile_number, password,0]) 
+                        cursor.execute("INSERT INTO [User] (Name, Email, MobileNumber, Password, CreatedOn,IsVerified,IsPaid,IsRejected) VALUES (%s, %s, %s, %s,GETDATE(),%s,%s,%s)",
+                                    [name, email, mobile_number, password,0,0,0]) 
                         
                     
                     if not res.is_user_register_successfull:
@@ -504,8 +505,6 @@ class VerifyOtpAPIView(APIView):
                         elif otp_result[0] == otp_number:
                             if user_verification:
                                 cursor.execute("UPDATE [User] SET IsVerified = %s WHERE Email = %s",[1,email])
-
-                                #hit to payment
                                 res.is_user_verified_successfull = True
                             elif employee_verification:
                                 cursor.execute("INSERT INTO EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id,organization_id,1])
@@ -570,7 +569,7 @@ class OrganizationAPIView(APIView):
             res = response()
             res.user_id = user_id
             with connection.cursor() as cursor:
-                cursor.execute("select OrganizationId, IsVerified,IsPaid from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
+                cursor.execute("select OrganizationId, IsVerified,IsPaid,IsRejected from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
                 organization_details_by_user_id = cursor.fetchall()
                 if organization_details_by_user_id:
                     res.is_organization_mapped = True
@@ -579,10 +578,12 @@ class OrganizationAPIView(APIView):
                     organization_id_list = []
                     organization_verified_dict = {}
                     organization_paid_dict = {}
+                    organization_rejected_dict = {}
                     for organization_detail in organization_details_by_user_id:
                         organization_id_list.append(str(organization_detail[0]))
                         organization_verified_dict[organization_detail[0]] = organization_detail[1]
                         organization_paid_dict[organization_detail[0]] = organization_detail[2]
+                        organization_rejected_dict[organization_detail[0]] = organization_detail[3]
                     strr = ','.join(organization_id_list)
                     cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, DocumentNumber,CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
                     organization_detail_list_by_id = cursor.fetchall()
@@ -602,6 +603,7 @@ class OrganizationAPIView(APIView):
                         org.pincode = pincode
                         org.organization_verified = organization_verified_dict[id]
                         org.organization_paid = organization_paid_dict[id]
+                        org.organization_rejected = organization_rejected_dict[id]
                         organization_detail_list.append(org.to_dict())
                     res.organization_list = organization_detail_list
                     res.organizations_paid_count = organizations_paid_count
@@ -1208,4 +1210,54 @@ class VerifyOrganizationAPIview(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+class SubscribeAPIview(APIView):
+    @csrf_exempt
+    def post(self, request):
+        data = request.data
+        user_id = data.get('user_id')
+        organization_id = data.get('organization_id')
+        plan_id = data.get('plan_id')
+        logger.info(data)
+        res = response()
+        pay = payment()
+        try:
+            url = 'http://localhost:8081/razorpay/create/subscription'
+            data = {
+                'user_id': user_id,
+                'organization_id': organization_id,
+                'plan_id':plan_id,
+            }
+            response_data = requests.post(url, json=data)
+            print(response_data)
+            if response_data.status_code == 200:
+                data = response_data.json()
+                subscriptionLink = data.get('subscriptionLink')
+                subscription_id = data.get('subscriptionId')
+                razor_pay_status = data.get('status')
+                payment_response_list = []
+                pay.subscriptionLink = subscriptionLink
+                pay.subscription_id = subscription_id
+                pay.razor_pay_status = razor_pay_status
+                payment_response_list.append(pay.to_dict())
+                res.payment_response_list = payment_response_list
+                res.subscription_id_created_successfull = True
+            else:
+                res.subscription_id_created_successfull = False
+            return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.subscription_id_created_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.subscription_id_created_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+            
+
 

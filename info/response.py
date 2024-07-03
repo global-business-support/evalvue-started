@@ -54,6 +54,9 @@ class response:
         self.is_employee_terminated_successfull = None 
         self.is_terminated_employee_added_successfull = None
 
+        self.payment_response_list = None
+        self.subscription_id_created_successfull = None
+
     def convertToJSON(self):
         res = {}
         for attr_name, attr_value in vars(self).items():
