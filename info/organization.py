@@ -28,6 +28,8 @@ class organization:
         self.document_file = None
         self.date_time = None
         self.gstin = None
+        self.verified = None
+        self.rejected = None
         self.rejected_message = None
 
     def to_dict(self):

@@ -60,6 +60,7 @@ class response:
         self.is_subscription_id_already_exist = None
         self.payment_response_list = None
         self.is_payment_response_sent_succefull = None
+        self.is_organization_reapplied_successfull = None
 
     def convertToJSON(self):
         res = {}

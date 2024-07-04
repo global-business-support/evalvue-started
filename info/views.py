@@ -563,55 +563,56 @@ class OrganizationAPIView(APIView):
     @csrf_exempt
     def post(self,request):
         try:
-            user_id = getattr(request, 'user_id', None)
-            data = request.data
-            logger.info(data)
-            res = response()
-            res.user_id = user_id
-            with connection.cursor() as cursor:
-                cursor.execute("select OrganizationId, IsVerified,IsPaid,IsRejected from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
-                organization_details_by_user_id = cursor.fetchall()
-                if organization_details_by_user_id:
-                    res.is_organization_mapped = True
-                    cursor.execute("SELECT COUNT(*) FROM [UserOrganizationMapping] WHERE UserId = %s AND IsPaid = 1;",[user_id])
-                    organizations_paid_count = cursor.fetchone()[0]
-                    organization_id_list = []
-                    organization_verified_dict = {}
-                    organization_paid_dict = {}
-                    organization_rejected_dict = {}
-                    for organization_detail in organization_details_by_user_id:
-                        organization_id_list.append(str(organization_detail[0]))
-                        organization_verified_dict[organization_detail[0]] = organization_detail[1]
-                        organization_paid_dict[organization_detail[0]] = organization_detail[2]
-                        organization_rejected_dict[organization_detail[0]] = organization_detail[3]
-                    strr = ','.join(organization_id_list)
-                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, DocumentNumber,CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
-                    organization_detail_list_by_id = cursor.fetchall()
-                    organization_detail_list = []
-                    for id,name,image,sector_id,listed_id,document_number,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
-                        org = organization()
-                        org.organization_id = id
-                        org.name = name
-                        org.image = image
-                        org.sector_name = sector_type_data[sector_id]['Name']
-                        org.listed_name = listed_type_data[listed_id]['Name']
-                        org.country_name = country_data[country_id]['Name']
-                        org.state_name = state_data[state_id]['Name']
-                        org.city_name = city_data[city_id]['Name']
-                        org.document_number = document_number
-                        org.area = area
-                        org.pincode = pincode
-                        org.organization_verified = organization_verified_dict[id]
-                        org.organization_paid = organization_paid_dict[id]
-                        org.organization_rejected = organization_rejected_dict[id]
-                        organization_detail_list.append(org.to_dict())
-                    res.organization_list = organization_detail_list
-                    res.organizations_paid_count = organizations_paid_count
-                    return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
-                else: 
-                    res.is_organization_mapped = False
-                    populateAddOrganizationData(res)
-                    return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+            with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
+                data = request.data
+                logger.info(data)
+                res = response()
+                res.user_id = user_id
+                with connection.cursor() as cursor:
+                    cursor.execute("select OrganizationId, IsVerified,IsPaid,IsRejected from UserOrganizationMapping where UserId = %s ORDER BY CreatedOn DESC",[user_id])
+                    organization_details_by_user_id = cursor.fetchall()
+                    if organization_details_by_user_id:
+                        res.is_organization_mapped = True
+                        cursor.execute("SELECT COUNT(*) FROM [UserOrganizationMapping] WHERE UserId = %s AND IsPaid = 1;",[user_id])
+                        organizations_paid_count = cursor.fetchone()[0]
+                        organization_id_list = []
+                        organization_verified_dict = {}
+                        organization_paid_dict = {}
+                        organization_rejected_dict = {}
+                        for organization_detail in organization_details_by_user_id:
+                            organization_id_list.append(str(organization_detail[0]))
+                            organization_verified_dict[organization_detail[0]] = organization_detail[1]
+                            organization_paid_dict[organization_detail[0]] = organization_detail[2]
+                            organization_rejected_dict[organization_detail[0]] = organization_detail[3]
+                        strr = ','.join(organization_id_list)
+                        cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, DocumentNumber,CountryId,StateId,CityId,Area,PinCode from Organization where OrganizationId In ({}) ORDER BY CreatedOn DESC".format(strr))
+                        organization_detail_list_by_id = cursor.fetchall()
+                        organization_detail_list = []
+                        for id,name,image,sector_id,listed_id,document_number,country_id,state_id,city_id,area,pincode in organization_detail_list_by_id:
+                            org = organization()
+                            org.organization_id = id
+                            org.name = name
+                            org.image = image
+                            org.sector_name = sector_type_data[sector_id]['Name']
+                            org.listed_name = listed_type_data[listed_id]['Name']
+                            org.country_name = country_data[country_id]['Name']
+                            org.state_name = state_data[state_id]['Name']
+                            org.city_name = city_data[city_id]['Name']
+                            org.document_number = document_number
+                            org.area = area
+                            org.pincode = pincode
+                            org.organization_verified = organization_verified_dict[id]
+                            org.organization_paid = organization_paid_dict[id]
+                            org.organization_rejected = organization_rejected_dict[id]
+                            organization_detail_list.append(org.to_dict())
+                        res.organization_list = organization_detail_list
+                        res.organizations_paid_count = organizations_paid_count
+                        return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+                    else: 
+                        res.is_organization_mapped = False
+                        populateAddOrganizationData(res)
+                        return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.error = generic_error_message
@@ -742,38 +743,39 @@ class DashboardFeedAPIview(APIView):
     @csrf_exempt
     def post(self,request):
         try:
-            user_id = getattr(request, 'user_id', None)
-            data = request.data
-            logger.info(data)
-            res = response()
-            res.user_id = user_id
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,r.Image,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation,org.Image,emp.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC")
-                rows = cursor.fetchall()
-                reviews = []
-                if rows:
-                    for row in rows:
-                        sql_server_time = row[3]
-                        formatted_time = convert_to_ist_time(sql_server_time)
-                        rev = review()
-                        rev.review_id = row[0]
-                        rev.comment = row[1]
-                        rev.rating = row[2]
-                        rev.created_on = formatted_time
-                        rev.image = row[4]
-                        rev.organization_id = row[5]
-                        rev.organization_name = row[6]
-                        rev.employee_id = row[7]
-                        rev.employee_name = row[8]
-                        rev.designation = row[9]
-                        rev.organization_image = row[10]
-                        rev.employee_image = row[11]
-                        reviews.append(rev.to_dict())
-                    res.dashboard_list = reviews
-                    res.is_review_mapped = True
-                else:
-                    res.is_review_mapped = False
-                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+            with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
+                data = request.data
+                logger.info(data)
+                res = response()
+                res.user_id = user_id
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,r.Image,org.OrganizationId,org.Name,emp.EmployeeId,emp.Name,emp.Designation,org.Image,emp.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId ORDER BY r.CreatedOn DESC")
+                    rows = cursor.fetchall()
+                    reviews = []
+                    if rows:
+                        for row in rows:
+                            sql_server_time = row[3]
+                            formatted_time = convert_to_ist_time(sql_server_time)
+                            rev = review()
+                            rev.review_id = row[0]
+                            rev.comment = row[1]
+                            rev.rating = row[2]
+                            rev.created_on = formatted_time
+                            rev.image = row[4]
+                            rev.organization_id = row[5]
+                            rev.organization_name = row[6]
+                            rev.employee_id = row[7]
+                            rev.employee_name = row[8]
+                            rev.designation = row[9]
+                            rev.organization_image = row[10]
+                            rev.employee_image = row[11]
+                            reviews.append(rev.to_dict())
+                        res.dashboard_list = reviews
+                        res.is_review_mapped = True
+                    else:
+                        res.is_review_mapped = False
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -791,36 +793,37 @@ class SearchByAadharAPIview(APIView):
     @csrf_exempt
     def post(self,request):
         try:
-            data = request.data
-            aadhar_number = data.get('aadhar_number')
-            logger.info(data)
-            res = response()
-            aadhar_number = '%'+ aadhar_number + '%'
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.OrganizationId,eom.StatusId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s AND eom.EmployeeOrganizationMappingId = (SELECT TOP 1 eom_inner.EmployeeOrganizationMappingId FROM EmployeeOrganizationMapping eom_inner WHERE eom_inner.EmployeeId = emp.EmployeeId ORDER BY eom_inner.EmployeeOrganizationMappingId DESC)",[aadhar_number])
-                rows = cursor.fetchall()
-                employees = []
-                if rows:
-                    for row in rows:
-                        adh = aadhar()
-                        adh.employee_id = row[0]
-                        adh.employee_name = row[1]
-                        adh.email = row[2]
-                        adh.mobile_number = row[3]
-                        adh.employee_image = row[4]
-                        adh.aadhar_number = row[5]
-                        adh.created_on = convert_to_ist_time(row[6])
-                        adh.designation = row[7]
-                        adh.organization_id = row[8]
-                        adh.status_id = row[9]
-                        adh.organization_name = row[10]
-                        adh.organization_image = row[11]
-                        employees.append(adh.to_dict())
-                    res.employees_list_by_aadhar = employees
-                    res.employees_mapped_to_aadhar = True
-                else:
-                    res.employees_mapped_to_aadhar = False
-                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+            with transaction.atomic():
+                data = request.data
+                aadhar_number = data.get('aadhar_number')
+                logger.info(data)
+                res = response()
+                aadhar_number = '%'+ aadhar_number + '%'
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT emp.EmployeeId,emp.Name,emp.Email,emp.MobileNumber,emp.Image,emp.AadharNumber,emp.CreatedOn,emp.Designation,eom.OrganizationId,eom.StatusId,org.Name,org.Image FROM EmployeeOrganizationMapping eom JOIN Employee emp ON eom.EmployeeId = emp.EmployeeId JOIN Organization org ON eom.OrganizationId = org.OrganizationId where AadharNumber LIKE %s AND eom.EmployeeOrganizationMappingId = (SELECT TOP 1 eom_inner.EmployeeOrganizationMappingId FROM EmployeeOrganizationMapping eom_inner WHERE eom_inner.EmployeeId = emp.EmployeeId ORDER BY eom_inner.EmployeeOrganizationMappingId DESC)",[aadhar_number])
+                    rows = cursor.fetchall()
+                    employees = []
+                    if rows:
+                        for row in rows:
+                            adh = aadhar()
+                            adh.employee_id = row[0]
+                            adh.employee_name = row[1]
+                            adh.email = row[2]
+                            adh.mobile_number = row[3]
+                            adh.employee_image = row[4]
+                            adh.aadhar_number = row[5]
+                            adh.created_on = convert_to_ist_time(row[6])
+                            adh.designation = row[7]
+                            adh.organization_id = row[8]
+                            adh.status_id = row[9]
+                            adh.organization_name = row[10]
+                            adh.organization_image = row[11]
+                            employees.append(adh.to_dict())
+                        res.employees_list_by_aadhar = employees
+                        res.employees_mapped_to_aadhar = True
+                    else:
+                        res.employees_mapped_to_aadhar = False
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.employees_mapped_to_aadhar = False
@@ -835,29 +838,30 @@ class SearchByAadharAPIview(APIView):
 
 class TopFiveEmployeeAPIview(APIView):
     def post(self,request):
-        user_id = getattr(request, 'user_id', None)
-        data = request.data
-        logger.info(data)
-        res = response()
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("WITH AverageRatings AS (SELECT Emp.EmployeeId,AVG(Rate.Rating) AS AverageRating FROM [testdb].[dbo].[ReviewEmployeeOrganizationMapping] AS Emp JOIN [testdb].[dbo].[Review] AS Rate ON Emp.ReviewId = Rate.ReviewId GROUP BY Emp.EmployeeId)SELECT TOP 5 AR.EmployeeId,E.Name,E.Designation,E.Image,AR.AverageRating FROM AverageRatings AS AR JOIN [testdb].[dbo].[Employee] AS E ON AR.EmployeeId = E.EmployeeId ORDER BY AR.AverageRating DESC")
-                rows = cursor.fetchall()
-                top = []
-                if rows:
-                    for row in rows:
-                        top_employee = employee()
-                        top_employee.employee_id = row[0]
-                        top_employee.employee_name = row[1]
-                        top_employee.designation = row[2]
-                        top_employee.employee_image = row[3]
-                        top_employee.average_rating = row[4]
-                        top.append(top_employee.to_dict())
-                    res.top_employee = top
-                    res.is_top_employee = True
-                else:
-                    res.is_top_employee = False
-                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+            with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
+                data = request.data
+                logger.info(data)
+                res = response()
+                with connection.cursor() as cursor:
+                    cursor.execute("WITH AverageRatings AS (SELECT Emp.EmployeeId,AVG(Rate.Rating) AS AverageRating FROM [testdb].[dbo].[ReviewEmployeeOrganizationMapping] AS Emp JOIN [testdb].[dbo].[Review] AS Rate ON Emp.ReviewId = Rate.ReviewId GROUP BY Emp.EmployeeId)SELECT TOP 5 AR.EmployeeId,E.Name,E.Designation,E.Image,AR.AverageRating FROM AverageRatings AS AR JOIN [testdb].[dbo].[Employee] AS E ON AR.EmployeeId = E.EmployeeId ORDER BY AR.AverageRating DESC")
+                    rows = cursor.fetchall()
+                    top = []
+                    if rows:
+                        for row in rows:
+                            top_employee = employee()
+                            top_employee.employee_id = row[0]
+                            top_employee.employee_name = row[1]
+                            top_employee.designation = row[2]
+                            top_employee.employee_image = row[3]
+                            top_employee.average_rating = row[4]
+                            top.append(top_employee.to_dict())
+                        res.top_employee = top
+                        res.is_top_employee = True
+                    else:
+                        res.is_top_employee = False
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
     
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -887,6 +891,7 @@ class EditOrganizationAPIview(APIView):
                 area = data.get("area")
                 pincode = data.get("pincode")
                 number_of_employee = data.get("number_of_employee")
+                rejected_user_reapplied = data.get('rejected_user_reapplied')
                 logger.info(data)
                 res.organization_edit_sucessfull = True 
                 if not validate_organization_name(organization_name):
@@ -912,13 +917,19 @@ class EditOrganizationAPIview(APIView):
                         else:
                             res.organization_edit_sucessfull = False
                             return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
-                        cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                        cursor.execute("UPDATE [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                        if rejected_user_reapplied:
+                            cursor.execute("UPDATE UserOrganizationMapping SET IsRejected = 0 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                            res.is_organization_reapplied_successfull = True
                         res.user_id = user_id
                         res.organization_id = organization_id
                         res.organization_edit_sucessfull = True
                         return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                     else:
                         cursor.execute("update [Organization] set Name = %s, Image = %s, SectorId = %s, ListedId = %s,CountryId = %s, StateId = %s, CityId = %s, Area = %s, PinCode = %s,NumberOfEmployee = %s, modifiedOn = GETDATE() WHERE OrganizationId = %s",[organization_name,organization_image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,number_of_employee,organization_id])
+                        if rejected_user_reapplied:
+                            cursor.execute("UPDATE UserOrganizationMapping SET IsRejected = 0 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                            res.is_organization_reapplied_successfull = True
                         res.user_id = user_id
                         res.organization_id = organization_id
                         res.organization_edit_sucessfull = True
@@ -1063,41 +1074,42 @@ class OrganizationEditableDataAPIView(APIView):
     @csrf_exempt
     def post(self,request):
         try:
-            user_id = getattr(request, 'user_id', None)
-            data = request.data
-            organization_id = data.get('organization_id')
-            rejected_user_reapply = data.get('rejected_user_reapply')
-            logger.info(data)
-            res = response()
-            with connection.cursor() as cursor:
-                message_result = False
-                if rejected_user_reapply:
-                    cursor.execute("Select Top 1 Message,CreatedOn from RejectMessage where UserId = %s and organizationId = %s Order By CreatedOn Desc",[user_id,organization_id])
-                    message_result = cursor.fetchone()
-                cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode,NumberOfEmployee from Organization where OrganizationId = %s",[organization_id])
-                organization_detail_list_by_id = cursor.fetchall()
-                organization_detail_list = []
-                for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,numberofemployee in organization_detail_list_by_id:
-                    org = organization()
-                    org.organization_name = name
-                    org.organization_image = image
-                    org.sector_id = sector_id
-                    org.listed_id = listed_id
-                    org.country_id = country_id
-                    org.state_id = state_id
-                    org.city_id = city_id
-                    org.area = area
-                    org.pincode = pincode
-                    org.number_of_employee = numberofemployee
-                    if message_result:
-                        org.rejected_message = message_result[0]
-                    # org.organization_verified = organization_verified_dict[id]
-                    organization_detail_list.append(org.to_dict())
-                res.organization_list = organization_detail_list
-                res.user_id = user_id
-                res.organization_id = organization_id
-                res.organization_editable_data_send_succesfull = True
-                return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
+            with transaction.atomic():
+                user_id = getattr(request, 'user_id', None)
+                data = request.data
+                organization_id = data.get('organization_id')
+                rejected_user_reapply = data.get('rejected_user_reapply')
+                logger.info(data)
+                res = response()
+                with connection.cursor() as cursor:
+                    message_result = False
+                    if rejected_user_reapply:
+                        cursor.execute("Select Top 1 Message,CreatedOn from RejectMessage where UserId = %s and organizationId = %s Order By CreatedOn Desc",[user_id,organization_id])
+                        message_result = cursor.fetchone()
+                    cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode,NumberOfEmployee from Organization where OrganizationId = %s",[organization_id])
+                    organization_detail_list_by_id = cursor.fetchall()
+                    organization_detail_list = []
+                    for id,name,image,sector_id,listed_id,country_id,state_id,city_id,area,pincode,numberofemployee in organization_detail_list_by_id:
+                        org = organization()
+                        org.organization_name = name
+                        org.organization_image = image
+                        org.sector_id = sector_id
+                        org.listed_id = listed_id
+                        org.country_id = country_id
+                        org.state_id = state_id
+                        org.city_id = city_id
+                        org.area = area
+                        org.pincode = pincode
+                        org.number_of_employee = numberofemployee
+                        if message_result:
+                            org.rejected_message = message_result[0]
+                        # org.organization_verified = organization_verified_dict[id]
+                        organization_detail_list.append(org.to_dict())
+                    res.organization_list = organization_detail_list
+                    res.user_id = user_id
+                    res.organization_id = organization_id
+                    res.organization_editable_data_send_succesfull = True
+                    return JsonResponse(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.organization_editable_data_send_succesfull = True
@@ -1144,41 +1156,44 @@ class TerminateEmployeeAPIView(APIView):
 class DocumentVerificationDataAPIview(APIView):
     @csrf_exempt
     def post(self, request):
-        data = request.data
-        user_id = data.get('user_id')
-        logger.info(data)
-        res = response()
-        res.user_id = user_id
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId WHERE uom.IsVerified = 0")
-                rows = cursor.fetchall()
-                organization_data = []
-                if rows:
-                    for row in rows:
-                        org = organization()
-                        org.organization_id = row[0]
-                        org.name = row[1]
-                        org.document_name = document_type_data[row[2]]['Name']
-                        org.document_number = row[3]
-                        org.document_file = row[4]
-                        org.sector_name = sector_type_data[row[5]]['Name']
-                        org.listed_name = listed_type_data[row[6]]['Name']
-                        org.image = row[7]
-                        org.date_time = convert_to_ist_time(row[8])
-                        org.gstin = row[9]
-                        org.number_of_employee = row[10]
-                        org.country_name = country_data[row[11]]['Name']
-                        org.state_name = state_data[row[12]]['Name']
-                        org.city_name = city_data[row[13]]['Name']
-                        org.area = row[14]
-                        org.pincode = row[15]
-                        organization_data.append(org.to_dict())
-                    res.organization_verification = organization_data
-                    res.is_document_verification_data_successfull = True
-                else:
-                    res.is_document_verification_data_successfull = False
-                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                logger.info(data)
+                res = response()
+                res.user_id = user_id
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode, uom.IsVerified, uom.IsRejected FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId")
+                    rows = cursor.fetchall()
+                    organization_data = []
+                    if rows:
+                        for row in rows:
+                            org = organization()
+                            org.organization_id = row[0]
+                            org.name = row[1]
+                            org.document_name = document_type_data[row[2]]['Name']
+                            org.document_number = row[3]
+                            org.document_file = row[4]
+                            org.sector_name = sector_type_data[row[5]]['Name']
+                            org.listed_name = listed_type_data[row[6]]['Name']
+                            org.image = row[7]
+                            org.date_time = convert_to_ist_time(row[8])
+                            org.gstin = row[9]
+                            org.number_of_employee = row[10]
+                            org.country_name = country_data[row[11]]['Name']
+                            org.state_name = state_data[row[12]]['Name']
+                            org.city_name = city_data[row[13]]['Name']
+                            org.area = row[14]
+                            org.pincode = row[15]
+                            org.verified = row[16]
+                            org.rejected = row[17]
+                            organization_data.append(org.to_dict())
+                        res.organization_verification = organization_data
+                        res.is_document_verification_data_successfull = True
+                    else:
+                        res.is_document_verification_data_successfull = False
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -1194,24 +1209,25 @@ class DocumentVerificationDataAPIview(APIView):
 
 class VerifyOrganizationAPIview(APIView):
     def post(self, request):
-        data = request.data
-        user_id = data.get("user_id")
-        organization_id = data.get('organization_id')
-        approve = data.get('approve')
-        rejected_message = data.get('message')
-        logger.info(data)
-        res = response()
         try:
-            with connection.cursor() as cursor:
-                if approve:
-                    cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s",[1,organization_id])
-                    res.is_organization_verified_successfull = True
-                else:
-                    cursor.execute("update [UserOrganizationMapping] set IsRejected = %s WHERE OrganizationId = %s",[1,organization_id])
-                    if rejected_message is not None or len(rejected_message)>1:
-                        cursor.execute("Insert into RejectMessage(UserId,OrganizationId,Message,CreatedOn) VALUES(%s,%s,%s,GETDATE())",[user_id,organization_id,rejected_message])
-                    res.is_organization_rejected_successfull = True
-                return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                organization_id = data.get('organization_id')
+                approve = data.get('approve')
+                rejected_message = data.get('message')
+                logger.info(data)
+                res = response()
+                with connection.cursor() as cursor:
+                    if approve:
+                        cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s",[1,organization_id])
+                        res.is_organization_verified_successfull = True
+                    else:
+                        cursor.execute("update [UserOrganizationMapping] set IsRejected = %s WHERE OrganizationId = %s",[1,organization_id])
+                        if rejected_message is not None or len(rejected_message)>1:
+                            cursor.execute("Insert into RejectMessage(UserId,OrganizationId,Message,CreatedOn) VALUES(%s,%s,%s,GETDATE())",[user_id,organization_id,rejected_message])
+                        res.is_organization_rejected_successfull = True
+                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -1228,49 +1244,50 @@ class VerifyOrganizationAPIview(APIView):
 class SubscribeAPIview(APIView):
     @csrf_exempt
     def post(self, request):
-        data = request.data
-        user_id = data.get('user_id')
-        organization_id = data.get('organization_id')
-        plan_id = data.get('plan_id')
-        logger.info(data)
-        res = response()
-        pay = payment()
         try:
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId = 1 ",[user_id,organization_id]) # 1 created
-                razor_pay_subscription_id_created_result = cursor.fetchone()
-                cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId != 1 ",[user_id,organization_id])
-                razor_pay_subscription_id_completed_and_not_created_result = cursor.fetchone()
-                subscription_response_list = []
-                if razor_pay_subscription_id_created_result:
-                    pay.subscription_id = razor_pay_subscription_id_created_result[0]
-                    subscription_response_list.append(pay.to_dict())
-                    res.subscription_response_list = subscription_response_list
-                    res.is_subscription_id_already_exist = True
-                elif razor_pay_subscription_id_completed_and_not_created_result is None or razor_pay_subscription_id_completed_and_not_created_result:
-                    url = 'http://localhost:8081/razorpay/create/subscription'
-                    data = {
-                        'user_id': user_id,
-                        'organization_id': organization_id,
-                        'plan_id':plan_id,
-                    }
-                    response_data = requests.post(url, json=data)
-                    if response_data.status_code == 200:
-                        data = response_data.json()
-                        subscriptionLink = data.get('subscriptionLink')
-                        subscription_id = data.get('subscriptionId')
-                        razor_pay_status = data.get('status')
-                        pay.subscriptionLink = subscriptionLink
-                        pay.subscription_id = subscription_id
-                        pay.razor_pay_status = razor_pay_status
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                organization_id = data.get('organization_id')
+                plan_id = data.get('plan_id')
+                logger.info(data)
+                res = response()
+                pay = payment()
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId = 1 ",[user_id,organization_id]) # 1 created
+                    razor_pay_subscription_id_created_result = cursor.fetchone()
+                    cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId != 1 ",[user_id,organization_id])
+                    razor_pay_subscription_id_completed_and_not_created_result = cursor.fetchone()
+                    subscription_response_list = []
+                    if razor_pay_subscription_id_created_result:
+                        pay.subscription_id = razor_pay_subscription_id_created_result[0]
                         subscription_response_list.append(pay.to_dict())
                         res.subscription_response_list = subscription_response_list
-                        res.is_subscription_id_created_successfull = True
+                        res.is_subscription_id_already_exist = True
+                    elif razor_pay_subscription_id_completed_and_not_created_result is None or razor_pay_subscription_id_completed_and_not_created_result:
+                        url = 'http://test.payment.api.evalvue.com/razorpay/create/subscription/'
+                        data = {
+                            'user_id': user_id,
+                            'organization_id': organization_id,
+                            'plan_id':plan_id,
+                        }
+                        response_data = requests.post(url, json=data)
+                        if response_data.status_code == 200:
+                            data = response_data.json()
+                            subscriptionLink = data.get('subscriptionLink')
+                            subscription_id = data.get('subscriptionId')
+                            razor_pay_status = data.get('status')
+                            pay.subscriptionLink = subscriptionLink
+                            pay.subscription_id = subscription_id
+                            pay.razor_pay_status = razor_pay_status
+                            subscription_response_list.append(pay.to_dict())
+                            res.subscription_response_list = subscription_response_list
+                            res.is_subscription_id_created_successfull = True
+                        else:
+                            res.is_subscription_id_created_successfull = False
                     else:
                         res.is_subscription_id_created_successfull = False
-                else:
-                    res.is_subscription_id_created_successfull = False
-                return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -1287,47 +1304,48 @@ class SubscribeAPIview(APIView):
 class VerifyPaymentAPIview(APIView):
     @csrf_exempt
     def post(self, request):
-        data = request.data
-        user_id = data.get('user_id')
-        organization_id = data.get('organization_id')
-        payment_id = data.get('payment_id')
-        subscription_id = data.get('subscription_id')
-        logger.info(data)
-        res = response()
-        pay = payment()
         try:
-            url = 'http://localhost:8081/razorpay/verify/payment'
-            data = {
-                'user_id': user_id,
-                'organization_id': organization_id,
-                'payment_id' : payment_id,
-                'subscription_id' : subscription_id,
-            }
-            response_data = requests.post(url, json=data)
-            payment_response_list = []
-            if response_data.status_code == 200:
-                data = response_data.json()
-                payment_status = data.get('Status')
-                if payment_status == 'paid':
-                    with connection.cursor() as cursor:
-                        cursor.execute("Update UserOrganizationMapping set IsPaid = 1 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                organization_id = data.get('organization_id')
+                payment_id = data.get('payment_id')
+                subscription_id = data.get('subscription_id')
+                logger.info(data)
+                res = response()
+                pay = payment()
+                url = 'http://test.payment.api.evalvue.com/razorpay/verify/payment/'
+                data = {
+                    'user_id': user_id,
+                    'organization_id': organization_id,
+                    'payment_id' : payment_id,
+                    'subscription_id' : subscription_id,
+                }
+                response_data = requests.post(url, json=data)
+                payment_response_list = []
+                if response_data.status_code == 200:
+                    data = response_data.json()
+                    payment_status = data.get('Status')
+                    if payment_status == 'paid':
+                        with connection.cursor() as cursor:
+                            cursor.execute("Update UserOrganizationMapping set IsPaid = 1 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                            pay.payment_status = payment_status
+                            pay.transaction = data.get('Transaction')
+                    elif payment_status == 'failed':
+                        pay.payment_status = payment_status
+                        pay.payment_cancelled = data.get('payment_cancelled')
+                        pay.error_description = data.get('error_description')
+                        pay.error_source = data.get('error_source')
+                        pay.error_step = data.get('error_step')
+                    else:
                         pay.payment_status = payment_status
                         pay.transaction = data.get('Transaction')
-                elif payment_status == 'failed':
-                    pay.payment_status = payment_status
-                    pay.payment_cancelled = data.get('payment_cancelled')
-                    pay.error_description = data.get('error_description')
-                    pay.error_source = data.get('error_source')
-                    pay.error_step = data.get('error_step')
+                    payment_response_list.append(pay.to_dict())
+                    res.payment_response_list = payment_response_list
+                    res.is_payment_response_sent_succefull = True
                 else:
-                    pay.payment_status = payment_status
-                    pay.transaction = data.get('Transaction')
-                payment_response_list.append(pay.to_dict())
-                res.payment_response_list = payment_response_list
-                res.is_payment_response_sent_succefull = True
-            else:
-                res.is_payment_response_sent_succefull = False
-            return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                    res.is_payment_response_sent_succefull = False
+                return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
             
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
