@@ -44,6 +44,7 @@ class response:
         self.organization_verification = None
         self.is_document_verification_data_successfull = None
         self.is_organization_verified_successfull = None
+        self.is_organization_rejected_successfull = None
         self.is_user_verified_successfull = None
         self.organizations_paid_count = None
 
@@ -54,8 +55,11 @@ class response:
         self.is_employee_terminated_successfull = None 
         self.is_terminated_employee_added_successfull = None
 
+        self.subscription_response_list = None
+        self.is_subscription_id_created_successfull = None
+        self.is_subscription_id_already_exist = None
         self.payment_response_list = None
-        self.subscription_id_created_successfull = None
+        self.is_payment_response_sent_succefull = None
 
     def convertToJSON(self):
         res = {}

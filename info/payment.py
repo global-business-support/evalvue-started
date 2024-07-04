@@ -4,6 +4,12 @@ class payment:
         self.subscription_id = None
         self.razor_pay_status = None
         self.subscriptionLink = None
+        self.payment_status = None
+        self.payment_cancelled = None
+        self.error_description = None
+        self.error_source = None
+        self.error_step = None
+        self.transaction = None
 
     def to_dict(self):
         pay = {}

@@ -68,7 +68,7 @@ def validate_gstin(gstin):
 def validate_referral_code(referral_code):
     if referral_code is None or len(referral_code)<1:
         return True
-    if re.match(r"^[0-9][0-9]{5}$",referral_code.strip()) and referral_code in referral_codes_data:
+    if re.match(r"^EV[A-Z]{2}\d{2}$",referral_code.strip()) and referral_code in referral_codes_data:
         return True
     return False
 

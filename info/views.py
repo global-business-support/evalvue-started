@@ -89,8 +89,8 @@ class CreateUserAPIView(APIView):
                         res.error = 'User Alreary Exists with this Email and Mobile Number'
                     else:
                         password = hash_password(password, salt)
-                        cursor.execute("INSERT INTO [User] (Name, Email, MobileNumber, Password, CreatedOn,IsVerified,IsPaid,IsRejected) VALUES (%s, %s, %s, %s,GETDATE(),%s,%s,%s)",
-                                    [name, email, mobile_number, password,0,0,0]) 
+                        cursor.execute("INSERT INTO [User] (Name, Email, MobileNumber, Password, CreatedOn,IsVerified) VALUES (%s, %s, %s, %s,GETDATE(),%s)",
+                                    [name, email, mobile_number, password,0]) 
                         
                     
                     if not res.is_user_register_successfull:
@@ -689,7 +689,7 @@ class CreateOrganizationAPIview(APIView):
                         organization_details = cursor.fetchone()
                         organization_id = organization_details[0]
                         organization_name = organization_details[1]
-                        cursor.execute("Insert into UserOrganizationMapping(UserId, OrganizationId, IsVerified,CreatedOn) values (%s,%s,%s,GETDATE())",[user_id,organization_id,0])
+                        cursor.execute("Insert into UserOrganizationMapping(UserId, OrganizationId, IsVerified,CreatedOn,IsPaid,IsRejected) values (%s,%s,%s,GETDATE(),%s,%s)",[user_id,organization_id,0,0,0])
                         if referral_code in referral_codes_data:
                             cursor.execute("INSERT INTO ReferralOrganizationMapping(Code,Name,OrganizationId,OrganizationName,CreatedOn) VALUES(%s,%s,%s,%s,GETDATE())",[referral_code,referral_codes_data[referral_code],organization_id,organization_name])
 
@@ -1066,9 +1066,13 @@ class OrganizationEditableDataAPIView(APIView):
             user_id = getattr(request, 'user_id', None)
             data = request.data
             organization_id = data.get('organization_id')
+            rejected_user_reapply = data.get('rejected_user_reapply')
             logger.info(data)
             res = response()
             with connection.cursor() as cursor:
+                if rejected_user_reapply:
+                    cursor.execute("Select Top 1 Message,CreatedOn from RejectMessage where UserId = %s and organizationId = %s Order By CreatedOn Desc",[user_id,organization_id])
+                    message_result = cursor.fetchone()
                 cursor.execute("select OrganizationId, Name, Image, SectorId, ListedId, CountryId,StateId,CityId,Area,PinCode,NumberOfEmployee from Organization where OrganizationId = %s",[organization_id])
                 organization_detail_list_by_id = cursor.fetchall()
                 organization_detail_list = []
@@ -1084,6 +1088,8 @@ class OrganizationEditableDataAPIView(APIView):
                     org.area = area
                     org.pincode = pincode
                     org.number_of_employee = numberofemployee
+                    if message_result:
+                        org.rejected_message = message_result[0]
                     # org.organization_verified = organization_verified_dict[id]
                     organization_detail_list.append(org.to_dict())
                 res.organization_list = organization_detail_list
@@ -1190,12 +1196,20 @@ class VerifyOrganizationAPIview(APIView):
         data = request.data
         user_id = data.get("user_id")
         organization_id = data.get('organization_id')
+        approve = data.get('approve')
+        rejected_message = data.get('message')
         logger.info(data)
         res = response()
         try:
             with connection.cursor() as cursor:
-                cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s",[1,organization_id])
-                res.is_organization_verified_successfull = True
+                if approve:
+                    cursor.execute("update [UserOrganizationMapping] set Isverified = %s WHERE OrganizationId = %s",[1,organization_id])
+                    res.is_organization_verified_successfull = True
+                else:
+                    cursor.execute("update [UserOrganizationMapping] set IsRejected = %s WHERE OrganizationId = %s",[1,organization_id])
+                    if rejected_message is not None or len(rejected_message)>1:
+                        cursor.execute("Insert into RejectMessage(UserId,OrganizationId,Message,CreatedOn) VALUES(%s,%s,%s,GETDATE())",[user_id,organization_id,rejected_message])
+                    res.is_organization_rejected_successfull = True
                 return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
                 
         except IntegrityError as e:
@@ -1221,39 +1235,108 @@ class SubscribeAPIview(APIView):
         res = response()
         pay = payment()
         try:
-            url = 'http://localhost:8081/razorpay/create/subscription'
-            data = {
-                'user_id': user_id,
-                'organization_id': organization_id,
-                'plan_id':plan_id,
-            }
-            response_data = requests.post(url, json=data)
-            print(response_data)
-            if response_data.status_code == 200:
-                data = response_data.json()
-                subscriptionLink = data.get('subscriptionLink')
-                subscription_id = data.get('subscriptionId')
-                razor_pay_status = data.get('status')
-                payment_response_list = []
-                pay.subscriptionLink = subscriptionLink
-                pay.subscription_id = subscription_id
-                pay.razor_pay_status = razor_pay_status
-                payment_response_list.append(pay.to_dict())
-                res.payment_response_list = payment_response_list
-                res.subscription_id_created_successfull = True
-            else:
-                res.subscription_id_created_successfull = False
-            return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId = 1 ",[user_id,organization_id]) # 1 created
+                razor_pay_subscription_id_created_result = cursor.fetchone()
+                cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId != 1 ",[user_id,organization_id])
+                razor_pay_subscription_id_completed_and_not_created_result = cursor.fetchone()
+                subscription_response_list = []
+                if razor_pay_subscription_id_created_result:
+                    pay.subscription_id = razor_pay_subscription_id_created_result[0]
+                    subscription_response_list.append(pay.to_dict())
+                    res.subscription_response_list = subscription_response_list
+                    res.is_subscription_id_already_exist = True
+                elif razor_pay_subscription_id_completed_and_not_created_result is None or razor_pay_subscription_id_completed_and_not_created_result:
+                    url = 'http://localhost:8081/razorpay/create/subscription'
+                    data = {
+                        'user_id': user_id,
+                        'organization_id': organization_id,
+                        'plan_id':plan_id,
+                    }
+                    response_data = requests.post(url, json=data)
+                    if response_data.status_code == 200:
+                        data = response_data.json()
+                        subscriptionLink = data.get('subscriptionLink')
+                        subscription_id = data.get('subscriptionId')
+                        razor_pay_status = data.get('status')
+                        pay.subscriptionLink = subscriptionLink
+                        pay.subscription_id = subscription_id
+                        pay.razor_pay_status = razor_pay_status
+                        subscription_response_list.append(pay.to_dict())
+                        res.subscription_response_list = subscription_response_list
+                        res.is_subscription_id_created_successfull = True
+                    else:
+                        res.is_subscription_id_created_successfull = False
+                else:
+                    res.is_subscription_id_created_successfull = False
+                return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
 
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
-            res.subscription_id_created_successfull = False
+            res.is_subscription_id_created_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
-            res.subscription_id_created_successfull = False
+            res.is_subscription_id_created_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class VerifyPaymentAPIview(APIView):
+    @csrf_exempt
+    def post(self, request):
+        data = request.data
+        user_id = data.get('user_id')
+        organization_id = data.get('organization_id')
+        payment_id = data.get('payment_id')
+        subscription_id = data.get('subscription_id')
+        logger.info(data)
+        res = response()
+        pay = payment()
+        try:
+            url = 'http://localhost:8081/razorpay/verify/payment'
+            data = {
+                'user_id': user_id,
+                'organization_id': organization_id,
+                'payment_id' : payment_id,
+                'subscription_id' : subscription_id,
+            }
+            response_data = requests.post(url, json=data)
+            payment_response_list = []
+            if response_data.status_code == 200:
+                data = response_data.json()
+                payment_status = data.get('Status')
+                if payment_status == 'paid':
+                    with connection.cursor() as cursor:
+                        cursor.execute("Update UserOrganizationMapping set IsPaid = 1 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                        pay.payment_status = payment_status
+                        pay.transaction = data.get('Transaction')
+                elif payment_status == 'failed':
+                    pay.payment_status = payment_status
+                    pay.payment_cancelled = data.get('payment_cancelled')
+                    pay.error_description = data.get('error_description')
+                    pay.error_source = data.get('error_source')
+                    pay.error_step = data.get('error_step')
+                else:
+                    pay.payment_status = payment_status
+                    pay.transaction = data.get('Transaction')
+                payment_response_list.append(pay.to_dict())
+                res.payment_response_list = payment_response_list
+                res.is_payment_response_sent_succefull = True
+            else:
+                res.is_payment_response_sent_succefull = False
+            return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+            
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_payment_response_sent_succefull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_payment_response_sent_succefull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
