@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .views import DocumentVerificationDataAPIview, SubscribeAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview
+from .views import DocumentVerificationDataAPIview, SubscribeAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview, VerifyPaymentAPIview
 from .views import CreateEmployeeAPIView, CreateReviewAPIView, CreateUserAPIView, DashboardFeedAPIview, EmployeeAPIView, EmployeeEditableDataAPIView, OrganizationEditableDataAPIView, SearchByAadharAPIview, ShootOtpAPIView, LoginUserAPIView, ReviewAPIView, TerminateEmployeeAPIView, UpdatePasswordAPIView, VerifyOtpAPIView,OrganizationAPIView,CreateOrganizationAPIview,AddOrganizationAPIview
 urlpatterns = [
     path('create/user/', CreateUserAPIView.as_view(), name='create_user'),
@@ -25,7 +25,8 @@ urlpatterns = [
     path('terminate/employee/',TerminateEmployeeAPIView.as_view(), name='terminate_employee'),
     path('document/verification/data/', DocumentVerificationDataAPIview.as_view(), name = 'document_verification_data'),
     path('verify/organization/', VerifyOrganizationAPIview.as_view(), name = 'verify_organization'),
-    path('create/subscription/id/', SubscribeAPIview.as_view(), name = 'create_subscription_id')
+    path('create/subscription/id/', SubscribeAPIview.as_view(), name = 'create_subscription_id'),
+    path('verify/payment/', VerifyPaymentAPIview.as_view(), name = 'verify_payment')
 
 
 ]

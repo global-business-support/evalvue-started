@@ -271,7 +271,6 @@ def fetch_referral_codes_data_from_db():
         referral_data = cursor.fetchall()
         for ReferralCode,ReferralName in referral_data:
             referral_codes_data[ReferralCode] = ReferralName
-        print(referral_codes_data)
 def get_cached_referral_codes_data():
     return referral_codes_data
 def refresh_referral_codes_data():
