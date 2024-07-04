@@ -1070,6 +1070,7 @@ class OrganizationEditableDataAPIView(APIView):
             logger.info(data)
             res = response()
             with connection.cursor() as cursor:
+                message_result = False
                 if rejected_user_reapply:
                     cursor.execute("Select Top 1 Message,CreatedOn from RejectMessage where UserId = %s and organizationId = %s Order By CreatedOn Desc",[user_id,organization_id])
                     message_result = cursor.fetchone()
