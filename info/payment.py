@@ -10,6 +10,12 @@ class payment:
         self.error_source = None
         self.error_step = None
         self.transaction = None
+        self.organization_name = None
+        self.plan_id = None
+        self.start_date = None
+        self.end_date = None
+        self.next_due_date = None
+        self.status = None
 
     def to_dict(self):
         pay = {}

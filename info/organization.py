@@ -30,6 +30,7 @@ class organization:
         self.gstin = None
         self.verified = None
         self.rejected = None
+        self.paid = None
         self.rejected_message = None
 
     def to_dict(self):

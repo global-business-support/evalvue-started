@@ -62,6 +62,10 @@ class response:
         self.is_payment_response_sent_succefull = None
         self.is_organization_reapplied_successfull = None
 
+        self.subscription_history_data = None
+        self.is_subscription_history_data_sent_successfull = None
+        self.no_data_found = None
+
     def convertToJSON(self):
         res = {}
         for attr_name, attr_value in vars(self).items():
