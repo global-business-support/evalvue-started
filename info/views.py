@@ -24,6 +24,7 @@ import requests
 import re
 import random
 from datetime import datetime, timedelta
+import datetime
 from django.db import connection,IntegrityError,transaction
 from evalvue import settings
 from info import aadhar, organization, payment, review
@@ -1164,7 +1165,7 @@ class DocumentVerificationDataAPIview(APIView):
                 res = response()
                 res.user_id = user_id
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode, uom.IsVerified, uom.IsRejected FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId")
+                    cursor.execute("SELECT org.OrganizationId,org.Name,org.DocumentTypeId,org.DocumentNumber,org.DocumentFile,org.SectorId,org.ListedId,org.Image,org.CreatedOn,org.GSTIN,org.NumberOfEmployee,org.CountryId,org.StateId,org.CityId,org.Area,org.PinCode, uom.IsVerified, uom.IsRejected, uom.IsPaid FROM [Organization] AS org JOIN [UserOrganizationMapping] AS uom ON org.OrganizationId = uom.OrganizationId")
                     rows = cursor.fetchall()
                     organization_data = []
                     if rows:
@@ -1188,6 +1189,7 @@ class DocumentVerificationDataAPIview(APIView):
                             org.pincode = row[15]
                             org.verified = row[16]
                             org.rejected = row[17]
+                            org.paid = row[18]
                             organization_data.append(org.to_dict())
                         res.organization_verification = organization_data
                         res.is_document_verification_data_successfull = True
@@ -1359,6 +1361,59 @@ class VerifyPaymentAPIview(APIView):
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class SubscriptionHistoryDataAPIview(APIView):
+    @csrf_exempt
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                organization_id = data.get('organization_id')
+                logger.info(data)
+                res = response()
+                pay = payment()
+                with connection.cursor() as cursor:
+                    print("hii")
+                    cursor.execute("SELECT org.[Name], s.PlanId, s.StartDate, s.EndDate, s.NextDueDate,ss.Name From [Subscription] AS s JOIN [Organization] AS org ON s.OrganizationId = org.OrganizationId JOIN [SubscriptionStatus] AS ss ON s.SubscriptionStatusId = ss.SubscriptionStatusId WHERE s.UserId = %s",[user_id])
+                    subscription_result = cursor.fetchall()
+                    subscription_history_data = []
+                    if subscription_result:
+                        for row in subscription_result:
+                            pay.organization_name = row[0]
+                            pay.plan_id = row[1]
+                            if row[2] is not None:
+                                pay.start_date = row[2].date()
+                            if row[3] is not None:
+                                pay.end_date = row[3].date()
+                            if row[4] is not None:
+                                pay.next_due_date = row[4].date()
+                            pay.status = row[5]
+                            subscription_history_data.append(pay.to_dict())
+                        res.subscription_history_data = subscription_history_data
+                        res.is_subscription_history_data_sent_successfull = True
+                    else:
+                        res.no_data_found = True
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_subscription_history_data_sent_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_subscription_history_data_sent_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+
+
+
+
+
+
+
+                    
 
             
 
