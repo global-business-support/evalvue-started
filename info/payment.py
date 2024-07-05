@@ -16,6 +16,11 @@ class payment:
         self.end_date = None
         self.next_due_date = None
         self.status = None
+        self.org_name = None
+        self.order_id = None
+        self.amount = None
+        self.created_on = None
+        self.transaction_id = None
 
     def to_dict(self):
         pay = {}
