@@ -32,7 +32,7 @@ from info import constant
 from info.common_regex import validate_aadhar_number, validate_comment, validate_designation, validate_document_number, validate_email, validate_gstin, validate_mobile_number, validate_name, validate_organization_name, validate_otp, validate_password, validate_pin_code, validate_referral_code
 from info.constant import *
 from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_employee, validate_employee_on_edit, validate_organization, verify_password, extract_path, delete_file
-from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password, extract_path, delete_file
+from info.utility import convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_organization, verify_password, extract_path, delete_file,generate_reciept
 from info.utility import CustomObject, convert_to_ist_time, hash_password, populateAddOrganizationData, save_image, send_email, validate_file_extension, validate_file_size, validate_organization, verify_password
 from .employee import *
 from .organization import *
@@ -1306,6 +1306,8 @@ class SubscribeAPIview(APIView):
 class VerifyPaymentAPIview(APIView):
     @csrf_exempt
     def post(self, request):
+        res = response()
+        pay = payment()
         try:
             with transaction.atomic():
                 data = request.data
@@ -1313,41 +1315,45 @@ class VerifyPaymentAPIview(APIView):
                 organization_id = data.get('organization_id')
                 payment_id = data.get('payment_id')
                 subscription_id = data.get('subscription_id')
+                reciept = data.get('reciept')
                 logger.info(data)
-                res = response()
-                pay = payment()
-                url = 'http://test.payment.api.evalvue.com/razorpay/verify/payment/'
-                data = {
-                    'user_id': user_id,
-                    'organization_id': organization_id,
-                    'payment_id' : payment_id,
-                    'subscription_id' : subscription_id,
-                }
-                response_data = requests.post(url, json=data)
-                payment_response_list = []
-                if response_data.status_code == 200:
-                    data = response_data.json()
-                    payment_status = data.get('Status')
-                    if payment_status == 'paid':
-                        with connection.cursor() as cursor:
-                            cursor.execute("Update UserOrganizationMapping set IsPaid = 1 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                if reciept:
+                    generate_reciept(subscription_id,res,pay)
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+                else:
+                    url = 'http://test.payment.api.evalvue.com/razorpay/verify/payment/'
+                    data = {
+                        'user_id': user_id,
+                        'organization_id': organization_id,
+                        'payment_id' : payment_id,
+                        'subscription_id' : subscription_id,
+                    }
+                    response_data = requests.post(url, json=data)
+                    payment_response_list = []
+                    if response_data.status_code == 200:
+                        data = response_data.json()
+                        payment_status = data.get('Status')
+                        if payment_status == 'paid':
+                            with connection.cursor() as cursor:
+                                cursor.execute("Update UserOrganizationMapping set IsPaid = 1 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                                pay.payment_status = payment_status
+                                pay.transaction = data.get('Transaction')
+                        elif payment_status == 'failed':
+                            pay.payment_status = payment_status
+                            pay.payment_cancelled = data.get('payment_cancelled')
+                            pay.error_description = data.get('error_description')
+                            pay.error_source = data.get('error_source')
+                            pay.error_step = data.get('error_step')
+                        else:
                             pay.payment_status = payment_status
                             pay.transaction = data.get('Transaction')
-                    elif payment_status == 'failed':
-                        pay.payment_status = payment_status
-                        pay.payment_cancelled = data.get('payment_cancelled')
-                        pay.error_description = data.get('error_description')
-                        pay.error_source = data.get('error_source')
-                        pay.error_step = data.get('error_step')
+                        payment_response_list.append(pay.to_dict())
+                        res.payment_response_list = payment_response_list
+                        generate_reciept(subscription_id,res,pay)
+                        res.is_payment_response_sent_succefull = True
                     else:
-                        pay.payment_status = payment_status
-                        pay.transaction = data.get('Transaction')
-                    payment_response_list.append(pay.to_dict())
-                    res.payment_response_list = payment_response_list
-                    res.is_payment_response_sent_succefull = True
-                else:
-                    res.is_payment_response_sent_succefull = False
-                return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
+                        res.is_payment_response_sent_succefull = False
+                    return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
             
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
@@ -1373,7 +1379,6 @@ class SubscriptionHistoryDataAPIview(APIView):
                 res = response()
                 pay = payment()
                 with connection.cursor() as cursor:
-                    print("hii")
                     cursor.execute("SELECT org.[Name], s.PlanId, s.StartDate, s.EndDate, s.NextDueDate,ss.Name From [Subscription] AS s JOIN [Organization] AS org ON s.OrganizationId = org.OrganizationId JOIN [SubscriptionStatus] AS ss ON s.SubscriptionStatusId = ss.SubscriptionStatusId WHERE s.UserId = %s",[user_id])
                     subscription_result = cursor.fetchall()
                     subscription_history_data = []

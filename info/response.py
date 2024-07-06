@@ -65,6 +65,9 @@ class response:
         self.subscription_history_data = None
         self.is_subscription_history_data_sent_successfull = None
         self.no_data_found = None
+        self.generate_reciept_data = None
+        self.is_generate_reciept_data_send_successfull = None
+        self.generate_reciept_data = None
 
     def convertToJSON(self):
         res = {}
