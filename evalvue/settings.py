@@ -120,12 +120,12 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-database_media = 'http://test.api.evalvue.com/media/'
-payment_url = 'http://test.payment.api.evalvue.com/'
+database_media = 'https://api.evalvue.com/media/'
+payment_url = 'http://payment.api.evalvue.com/'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'testdb',
+        'NAME': 'prod_db',
         'USER': 'SA',
         'PASSWORD': 'welcome4U@',
         'HOST': '93.127.185.167',
