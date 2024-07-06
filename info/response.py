@@ -71,6 +71,7 @@ class response:
         self.payment_history_list = None
         self.is_payment_history_sent_successfull = None
         self.is_payment_already_done = None
+        self.payment_error = None
 
     def convertToJSON(self):
         res = {}

@@ -1263,16 +1263,17 @@ class SubscribeAPIview(APIView):
                     subscription_response_list = []
                     if razor_pay_subscription_id_created_result:
                         cursor.execute("Select IsPaid from [UserOrganizationMapping] where UserId = %s and OrganizationId = %s",[user_id,organization_id])
-                        result = cursor.fetchone()[0]
-                        if result == 1:
-                            res.is_payment_already_done = True   
-                        else:
-                            pay.subscription_id = razor_pay_subscription_id_created_result[0]
-                            subscription_response_list.append(pay.to_dict())
-                            res.subscription_response_list = subscription_response_list
-                            res.is_subscription_id_already_exist = True
+                        result = cursor.fetchone()
+                        if result:
+                            if result[0] == 1:
+                                res.is_payment_already_done = True   
+                            else:
+                                pay.subscription_id = razor_pay_subscription_id_created_result[0]
+                                subscription_response_list.append(pay.to_dict())
+                                res.subscription_response_list = subscription_response_list
+                                res.is_subscription_id_already_exist = True
                     elif razor_pay_subscription_id_completed_and_not_created_result is None or razor_pay_subscription_id_completed_and_not_created_result:
-                        url = 'http://test.payment.api.evalvue.com/razorpay/create/subscription/'
+                        url = settings.payment_url + 'razorpay/create/subscription/'
                         data = {
                             'user_id': user_id,
                             'organization_id': organization_id,
@@ -1290,6 +1291,7 @@ class SubscribeAPIview(APIView):
                             subscription_response_list.append(pay.to_dict())
                             res.subscription_response_list = subscription_response_list
                             res.is_subscription_id_created_successfull = True
+                            res.payment_error = data.get('payment_error')
                         else:
                             res.is_subscription_id_created_successfull = False
                     else:
@@ -1326,7 +1328,7 @@ class VerifyPaymentAPIview(APIView):
                     generate_reciept(subscription_id,res,pay)
                     return Response(res.convertToJSON(), status=status.HTTP_200_OK)
                 else:
-                    url = 'http://test.payment.api.evalvue.com/razorpay/verify/payment/'
+                    url = settings.payment_url + 'razorpay/verify/payment/'
                     data = {
                         'user_id': user_id,
                         'organization_id': organization_id,
