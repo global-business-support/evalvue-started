@@ -68,6 +68,8 @@ class response:
         self.generate_reciept_data = None
         self.is_generate_reciept_data_send_successfull = None
         self.generate_reciept_data = None
+        self.payment_history_list = None
+        self.is_payment_history_sent_successfull = None
 
     def convertToJSON(self):
         res = {}

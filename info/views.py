@@ -1410,6 +1410,48 @@ class SubscriptionHistoryDataAPIview(APIView):
             res.is_subscription_history_data_sent_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PaymentHistoryAPIView(APIView):
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                res = response()
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT org.[Name],p.[RazorpayOrderId],p.[Amount],ps.[Name],p.[CreatedOn], p.[RazorPaySubscriptionId],p.[TransactionId]  FROM [Payment] p JOIN [Organization] org ON p.[OrganizationId] = org.[OrganizationId] JOIN [PaymentStatus] ps ON p.[PaymentStatusId] = ps.[PaymentStatusId] WHERE p.[UserId] = %s ",[user_id])
+                    data = cursor.fetchall()
+                    
+                    payment_history_list = []
+                    if data:
+                        for row in data:
+                            pay = payment()
+                            pay.org_name = row[0]
+                            pay.order_id = row[1]
+                            pay.amount = row[2]
+                            pay.payment_status = row[3]
+                            pay.created_on = row[4]
+                            pay.subscription_id = row[5]
+                            pay.transaction_id = row[6]
+                            payment_history_list.append(pay.to_dict())
+                        res.payment_history_list = payment_history_list
+                        res.is_payment_history_sent_successfull = True
+                    else:
+                        res.is_payment_history_sent_successfull = False
+                        res.no_data_found = True
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_payment_history_sent_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_payment_history_sent_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
 
 

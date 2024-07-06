@@ -22,6 +22,11 @@ class payment:
         self.transaction_id = None
         self.payment_mode = None
 
+        self.org_name = None
+        self.order_id = None
+        self.amount = None
+        self.created_on = None
+        self.transaction_id = None
 
     def to_dict(self):
         pay = {}

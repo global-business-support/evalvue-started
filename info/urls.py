@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .views import DocumentVerificationDataAPIview, SubscribeAPIview, SubscriptionHistoryDataAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview, VerifyPaymentAPIview
+from .views import DocumentVerificationDataAPIview, PaymentHistoryAPIView, SubscribeAPIview, SubscriptionHistoryDataAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview, VerifyPaymentAPIview
 from .views import CreateEmployeeAPIView, CreateReviewAPIView, CreateUserAPIView, DashboardFeedAPIview, EmployeeAPIView, EmployeeEditableDataAPIView, OrganizationEditableDataAPIView, SearchByAadharAPIview, ShootOtpAPIView, LoginUserAPIView, ReviewAPIView, TerminateEmployeeAPIView, UpdatePasswordAPIView, VerifyOtpAPIView,OrganizationAPIView,CreateOrganizationAPIview,AddOrganizationAPIview
 urlpatterns = [
     path('create/user/', CreateUserAPIView.as_view(), name='create_user'),
@@ -27,7 +27,8 @@ urlpatterns = [
     path('verify/organization/', VerifyOrganizationAPIview.as_view(), name = 'verify_organization'),
     path('create/subscription/id/', SubscribeAPIview.as_view(), name = 'create_subscription_id'),
     path('verify/payment/', VerifyPaymentAPIview.as_view(), name = 'verify_payment'),
-    path('subscription/history/data/', SubscriptionHistoryDataAPIview.as_view(), name = 'subscription_history')
+    path('subscription/history/data/', SubscriptionHistoryDataAPIview.as_view(), name = 'subscription_history'),
+    path('payment/history/', PaymentHistoryAPIView.as_view(), name ='payment_history')
 
 
 ]
