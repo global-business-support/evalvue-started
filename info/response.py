@@ -70,6 +70,7 @@ class response:
         self.generate_reciept_data = None
         self.payment_history_list = None
         self.is_payment_history_sent_successfull = None
+        self.is_payment_already_done = None
 
     def convertToJSON(self):
         res = {}

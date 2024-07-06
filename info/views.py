@@ -495,7 +495,7 @@ class VerifyOtpAPIView(APIView):
                         cursor.execute("SELECT GETDATE()")
                         sql_server_time = cursor.fetchone()[0]
                         created_on = otp_result[1]
-                        created_time = datetime.strptime(str(created_on), '%Y-%m-%d %H:%M:%S.%f')  # Convert created_time string to datetime object
+                        created_time = datetime.datetime.strptime(str(created_on), '%Y-%m-%d %H:%M:%S.%f')  # Convert created_time string to datetime object
                         expiration_time = created_time + timedelta(minutes=2)
                         if sql_server_time > expiration_time:
                             res.otp_is_expired = True
@@ -1256,16 +1256,21 @@ class SubscribeAPIview(APIView):
                 res = response()
                 pay = payment()
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId = 1 ",[user_id,organization_id]) # 1 created
+                    cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and (SubscriptionStatusId = 1 or SubscriptionStatusId = 2 )",[user_id,organization_id]) # 1 created
                     razor_pay_subscription_id_created_result = cursor.fetchone()
-                    cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and SubscriptionStatusId != 1 ",[user_id,organization_id])
+                    cursor.execute("SELECT RazorPaySubscriptionId from [Subscription] where UserId = %s and OrganizationId = %s and (SubscriptionStatusId != 1 and SubscriptionStatusId !=2)",[user_id,organization_id])
                     razor_pay_subscription_id_completed_and_not_created_result = cursor.fetchone()
                     subscription_response_list = []
                     if razor_pay_subscription_id_created_result:
-                        pay.subscription_id = razor_pay_subscription_id_created_result[0]
-                        subscription_response_list.append(pay.to_dict())
-                        res.subscription_response_list = subscription_response_list
-                        res.is_subscription_id_already_exist = True
+                        cursor.execute("Select IsPaid from [UserOrganizationMapping] where UserId = %s and OrganizationId = %s",[user_id,organization_id])
+                        result = cursor.fetchone()[0]
+                        if result == 1:
+                            res.is_payment_already_done = True   
+                        else:
+                            pay.subscription_id = razor_pay_subscription_id_created_result[0]
+                            subscription_response_list.append(pay.to_dict())
+                            res.subscription_response_list = subscription_response_list
+                            res.is_subscription_id_already_exist = True
                     elif razor_pay_subscription_id_completed_and_not_created_result is None or razor_pay_subscription_id_completed_and_not_created_result:
                         url = 'http://test.payment.api.evalvue.com/razorpay/create/subscription/'
                         data = {
