@@ -221,7 +221,7 @@ class CustomObject:
 
 def generate_reciept(subscription_id,res,pay):
     try:
-        url = 'http://test.payment.api.evalvue.com/razorpay/payment/receipt/'
+        url = settings.payment_url + 'razorpay/payment/receipt/'
         params = {
             'subscription_id' : subscription_id,
         }
@@ -242,5 +242,5 @@ def generate_reciept(subscription_id,res,pay):
             res.is_generate_reciept_data_send_successfull = False
     except Exception as e:
         logger.exception('An unexpected error occurred: {}'.format(str(e)))
-        res.is_employee_terminated_successfull = False
+        res.is_generate_reciept_data_send_successfull = False
         res.error = generic_error_message
