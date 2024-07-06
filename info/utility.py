@@ -1,8 +1,12 @@
 from datetime import datetime
+import requests
+from rest_framework.response import Response
 from evalvue import settings
 import os
-from info import constant
+from info import constant, payment, response
 from .cache import *
+from .payment import *
+from .response import *
 from django.db import connection,IntegrityError,transaction
 from django.template.loader import render_to_string
 from django.core.mail import EmailMessage
@@ -10,6 +14,9 @@ import hashlib
 import uuid
 import logging
 import pytz
+from info.constant import *
+from django.views.decorators.csrf import csrf_exempt
+
 
 logger = logging.getLogger('info')
 
@@ -211,6 +218,29 @@ class CustomObject:
     def __init__(self, user_id, email):
         self.id = user_id
         self.email = email
-        
 
-
+def generate_reciept(subscription_id,res,pay):
+    try:
+        url = 'http://test.payment.api.evalvue.com/razorpay/payment/receipt/'
+        params = {
+            'subscription_id' : subscription_id,
+        }
+        response_data = requests.post(url, params=params)
+        generate_reciept_data = []
+        if response_data.status_code == 200:
+            data = response_data.json()
+            pay.organization_name = data.get('organization_name')
+            pay.amount = data.get('amount')
+            pay.razorpay_order_id = data.get('razorpay_order_id')
+            pay.payment_status = data.get('payment_status')
+            pay.transaction_id = data.get('transaction_id')
+            pay.payment_mode = data.get('payment_mode')
+            generate_reciept_data.append(pay.to_dict())
+            res.generate_reciept_data = generate_reciept_data
+            res.is_generate_reciept_data_send_successfull = True
+        else:
+            res.is_generate_reciept_data_send_successfull = False
+    except Exception as e:
+        logger.exception('An unexpected error occurred: {}'.format(str(e)))
+        res.is_employee_terminated_successfull = False
+        res.error = generic_error_message

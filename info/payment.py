@@ -16,6 +16,12 @@ class payment:
         self.end_date = None
         self.next_due_date = None
         self.status = None
+        self.organization_name = None
+        self.amount = None
+        self.razorpay_order_id = None
+        self.transaction_id = None
+        self.payment_mode = None
+
         self.org_name = None
         self.order_id = None
         self.amount = None
@@ -24,7 +30,6 @@ class payment:
 
     def to_dict(self):
         pay = {}
-        
         for attr_name, attr_value in vars(self).items():
             if attr_value is not None:
                 pay[attr_name] = attr_value
