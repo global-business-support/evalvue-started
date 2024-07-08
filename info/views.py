@@ -1387,7 +1387,7 @@ class SubscriptionHistoryDataAPIview(APIView):
                 res = response()
                 pay = payment()
                 with connection.cursor() as cursor:
-                    cursor.execute("SELECT org.[Name], s.PlanId, s.StartDate, s.EndDate, s.NextDueDate,ss.Name From [Subscription] AS s JOIN [Organization] AS org ON s.OrganizationId = org.OrganizationId JOIN [SubscriptionStatus] AS ss ON s.SubscriptionStatusId = ss.SubscriptionStatusId WHERE s.UserId = %s",[user_id])
+                    cursor.execute("SELECT org.[Name], s.PlanId, s.StartDate, s.EndDate, s.NextDueDate,ss.Name,p.Amount From [Subscription] AS s JOIN [Organization] AS org ON s.OrganizationId = org.OrganizationId JOIN [SubscriptionStatus] AS ss ON s.SubscriptionStatusId = ss.SubscriptionStatusId JOIN Plan AS p ON p.PlanId = ss.PlanId WHERE s.UserId = %s",[user_id])
                     subscription_result = cursor.fetchall()
                     subscription_history_data = []
                     if subscription_result:
@@ -1401,7 +1401,9 @@ class SubscriptionHistoryDataAPIview(APIView):
                             if row[4] is not None:
                                 pay.next_due_date = row[4].date()
                             pay.status = row[5]
-                            subscription_history_data.append(pay.to_dict())
+                            pay.amount = row[6]
+                            if row[5] != 'created':
+                                subscription_history_data.append(pay.to_dict())
                         res.subscription_history_data = subscription_history_data
                         res.is_subscription_history_data_sent_successfull = True
                     else:
