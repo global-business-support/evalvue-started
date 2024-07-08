@@ -117,15 +117,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'evalvue.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-database_media = 'https://api.evalvue.com/media/'
-payment_url = 'http://payment.api.evalvue.com/'
+# test
+database_media = 'http://test.api.evalvue.com/media/'
+payment_url = 'http://test.payment.api.evalvue.com/'
+# payment_url = 'http://localhost:8081/'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'prod_db',
+        'NAME': 'testdb',
         'USER': 'SA',
         'PASSWORD': 'welcome4U@',
         'HOST': '93.127.185.167',
@@ -136,6 +135,27 @@ DATABASES = {
         },
     }
 }
+
+# Database
+# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
+
+#prod
+# database_media = 'https://api.evalvue.com/media/'
+# payment_url = 'http://payment.api.evalvue.com/'
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'mssql',
+#         'NAME': 'prod_db',
+#         'USER': 'SA',
+#         'PASSWORD': 'welcome4U@',
+#         'HOST': '93.127.185.167',
+#         'PORT': '1433',
+#         'OPTIONS': {
+#             'driver': 'ODBC Driver 18 for SQL Server',
+#             'extra_params': 'TrustServerCertificate=yes',
+#         },
+#     }
+# }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.hostinger.com'  # Hostinger's SMTP server
