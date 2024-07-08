@@ -235,6 +235,8 @@ def generate_reciept(subscription_id,res,pay):
             pay.payment_status = data.get('payment_status')
             pay.transaction_id = data.get('transaction_id')
             pay.payment_mode = data.get('payment_mode')
+            pay.date = data.get('date_time')
+            pay.upi = data.get('payment_through_upi')
             generate_reciept_data.append(pay.to_dict())
             res.generate_reciept_data = generate_reciept_data
             res.is_generate_reciept_data_send_successfull = True

@@ -1285,13 +1285,16 @@ class SubscribeAPIview(APIView):
                             subscriptionLink = data.get('subscriptionLink')
                             subscription_id = data.get('subscriptionId')
                             razor_pay_status = data.get('status')
+                            if subscription_id is None:
+                                res.is_subscription_id_created_successfull = False
+                                res.error = constant.payment_error_message
+                                return Response(res.convertToJSON(), status = status.HTTP_200_OK)
                             pay.subscriptionLink = subscriptionLink
                             pay.subscription_id = subscription_id
                             pay.razor_pay_status = razor_pay_status
                             subscription_response_list.append(pay.to_dict())
                             res.subscription_response_list = subscription_response_list
                             res.is_subscription_id_created_successfull = True
-                            res.payment_error = data.get('payment_error')
                         else:
                             res.is_subscription_id_created_successfull = False
                     else:
@@ -1341,10 +1344,8 @@ class VerifyPaymentAPIview(APIView):
                         data = response_data.json()
                         payment_status = data.get('Status')
                         if payment_status == 'paid':
-                            with connection.cursor() as cursor:
-                                cursor.execute("Update UserOrganizationMapping set IsPaid = 1 where UserId = %s and OrganizationId = %s",[user_id,organization_id])
-                                pay.payment_status = payment_status
-                                pay.transaction = data.get('Transaction')
+                            pay.payment_status = payment_status
+                            pay.transaction = data.get('Transaction')
                         elif payment_status == 'failed':
                             pay.payment_status = payment_status
                             pay.payment_cancelled = data.get('payment_cancelled')

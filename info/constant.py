@@ -19,3 +19,4 @@ reset_password_email_not_found = 'Email address is not found'
 email_already_exist_error ="Email already exist's."
 mobile_number_already_exist_error = "Mobile number already exist's."
 aadhar_number_already_exist_error = "Aadhar number already exist's."
+payment_error_message = "Error in payment, Please try after sometime."
