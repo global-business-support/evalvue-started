@@ -1280,6 +1280,7 @@ class SubscribeAPIview(APIView):
                             'plan_id':plan_id,
                         }
                         response_data = requests.post(url, json=data)
+                        print(response_data.status_code)
                         if response_data.status_code == 200:
                             data = response_data.json()
                             subscriptionLink = data.get('subscriptionLink')
@@ -1297,6 +1298,8 @@ class SubscribeAPIview(APIView):
                             res.is_subscription_id_created_successfull = True
                         else:
                             res.is_subscription_id_created_successfull = False
+                            res.error = generic_error_message
+                            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     else:
                         res.is_subscription_id_created_successfull = False
                     return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
@@ -1340,6 +1343,7 @@ class VerifyPaymentAPIview(APIView):
                     }
                     response_data = requests.post(url, json=data)
                     payment_response_list = []
+                    print(response_data.status_code)
                     if response_data.status_code == 200:
                         data = response_data.json()
                         payment_status = data.get('Status')
@@ -1360,7 +1364,9 @@ class VerifyPaymentAPIview(APIView):
                         generate_reciept(subscription_id,res,pay)
                         res.is_payment_response_sent_succefull = True
                     else:
+                        res.error = receipt_error_message_2
                         res.is_payment_response_sent_succefull = False
+                        return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                     return Response(res.convertToJSON(), status = status.HTTP_201_CREATED)
             
         except IntegrityError as e:
