@@ -120,7 +120,7 @@ WSGI_APPLICATION = 'evalvue.wsgi.application'
 # test
 database_media = 'http://test.api.evalvue.com/media/'
 payment_url = 'http://test.payment.api.evalvue.com/'
-payment_url = 'http://localhost:8080/'
+# payment_url = 'http://localhost:8080/'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
