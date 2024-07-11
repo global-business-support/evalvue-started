@@ -1280,7 +1280,6 @@ class SubscribeAPIview(APIView):
                             'plan_id':plan_id,
                         }
                         response_data = requests.post(url, json=data)
-                        print(response_data.status_code)
                         if response_data.status_code == 200:
                             data = response_data.json()
                             subscriptionLink = data.get('subscriptionLink')
@@ -1343,7 +1342,6 @@ class VerifyPaymentAPIview(APIView):
                     }
                     response_data = requests.post(url, json=data)
                     payment_response_list = []
-                    print(response_data.status_code)
                     if response_data.status_code == 200:
                         data = response_data.json()
                         payment_status = data.get('Status')
