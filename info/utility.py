@@ -1,4 +1,5 @@
 from datetime import datetime
+from grpc import Status
 import requests
 from rest_framework.response import Response
 from evalvue import settings
@@ -16,6 +17,8 @@ import logging
 import pytz
 from info.constant import *
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework import status
+
 
 
 logger = logging.getLogger('info')
@@ -241,7 +244,9 @@ def generate_reciept(subscription_id,res,pay):
             res.generate_reciept_data = generate_reciept_data
             res.is_generate_reciept_data_send_successfull = True
         else:
+            res.error = receipt_error_message_1
             res.is_generate_reciept_data_send_successfull = False
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     except Exception as e:
         logger.exception('An unexpected error occurred: {}'.format(str(e)))
         res.is_generate_reciept_data_send_successfull = False
