@@ -24,6 +24,7 @@ class response:
         self.is_review_added_successfull = None
         self.is_review_mapped_to_employee_successfull = None
         self.otp_send_successfull = None
+        self.review_email_send_successfull = None
         self.otp_verified_successfull = None
         self.password_updated_successFull = None
         self.otp_is_expired = None

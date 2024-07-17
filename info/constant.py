@@ -13,6 +13,7 @@ organization_found_document_number = "Document number already exist's."
 salt = '##evalvue@()@#!'
 database_root = settings.database_media
 email_otp_template_path = 'info/email_template.html'
+email_review_template_path = 'info/review_template.html'
 file_validation_extension_error = 'Invalid file type. Only .png, .jpeg, and .jpg are allowed.'
 file_validation_size_error = 'File size should be less than 2 MB'
 reset_password_email_not_found = 'Email address is not found'

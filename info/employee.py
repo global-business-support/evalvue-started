@@ -12,6 +12,7 @@ class employee:
         self.designation = None
         self.image = None
         self.average_rating = None
+        self.avg_rating = None
 
     # def to_dict(self):
     #     return {

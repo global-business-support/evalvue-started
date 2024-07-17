@@ -296,6 +296,7 @@ class CreateReviewAPIView(APIView):
     @csrf_exempt
     def post(self,request):
         res = response()
+        rev = review()
         try:
             with transaction.atomic():
                 user_id = getattr(request, 'user_id', None)
@@ -331,7 +332,22 @@ class CreateReviewAPIView(APIView):
                     if review_id_inserted_row:
                         review_id = review_id_inserted_row[0]
                         cursor.execute("INSERT into ReviewEmployeeOrganizationMapping(ReviewId, OrganizationId, EmployeeId, CreatedOn) values(%s,%s,%s,GETDATE())",[review_id,organization_id,employee_id])
-
+                    cursor.execute("SELECT o.[Name], o.[Image], e.[Name], e.[Image] , e.Email,e.Designation FROM Organization o JOIN EmployeeOrganizationMapping em ON o.OrganizationId = em.OrganizationId JOIN Employee e ON e.EmployeeId = em.EmployeeId WHERE em.EmployeeId = %s and em.StatusId = 1",[employee_id])
+                    employee_and_organization_details = cursor.fetchone()
+                    rev.organization_name = employee_and_organization_details[0]
+                    rev.organization_image = employee_and_organization_details[1]
+                    rev.employee_name = employee_and_organization_details[2]
+                    rev.employee_image = employee_and_organization_details[3]
+                    rev.employee_email = employee_and_organization_details[4]
+                    rev.designation = employee_and_organization_details[5]
+                    rev.comment = comment
+                    rev.image = image
+                    rev.rating = rating
+                    ok = send_email(employee_and_organization_details[4],email_review_template_path,"Review",rev.to_dict())
+                    if ok:
+                        res.review_email_send_successfull = True
+                    else:
+                        res.review_email_send_successfull = False
                     res.is_review_added_successfull = True
                     res.user_id = user_id
                     res.organization_id = organization_id
@@ -365,6 +381,8 @@ class ReviewAPIView(APIView):
                 res.is_review_mapped_to_employee_successfull = True
 
                 with connection.cursor() as cursor:
+                    cursor.execute("SELECT AVG(r.rating) AS AverageRating FROM Review r JOIN [ReviewEmployeeOrganizationMapping] reom ON r.ReviewId = reom.ReviewId WHERE reom.EmployeeId =%s",[employee_id])
+                    avg_rating = cursor.fetchone()[0]
                     cursor.execute("SELECT EmployeeId, Name, Email, MobileNumber, Image, AadharNumber, Designation, CreatedOn from Employee where EmployeeId = %s",[employee_id])
                     employee_details = cursor.fetchone()
                     employee_list = []
@@ -376,6 +394,7 @@ class ReviewAPIView(APIView):
                     emp.employee_image = employee_details[4]
                     emp.aadhar_number = employee_details[5]
                     emp.designation = employee_details[6]
+                    emp.avg_rating = avg_rating
                     employee_list.append(emp.to_dict())
                     if search_by_aa:
                         cursor.execute("SELECT rem.ReviewId,r.Comment,r.Rating,r.CreatedOn,r.Image,org.OrganizationId,org.Name,org.Image FROM ReviewEmployeeOrganizationMapping rem JOIN Review r ON rem.ReviewId = r.ReviewId JOIN Organization org ON rem.OrganizationId = org.OrganizationId JOIN Employee emp ON rem.EmployeeId = emp.EmployeeId where rem.EmployeeId = %s",[employee_id])
@@ -447,7 +466,7 @@ class ShootOtpAPIView(APIView):
                             otp_number = ''.join(random.choices('0123456789', k=6))
                             cursor.execute("INSERT into [OTP] (Email, OtpNumber, Is_Verified, CreatedOn) VALUES(%s,%s,%s,GETDATE())",[email_result[1], otp_number,False])
 
-                            ok = send_email(email_result[1],email_otp_template_path,{'otp_number': otp_number})
+                            ok = send_email(email_result[1],email_otp_template_path,"OTP Verification",{'otp_number': otp_number})
                             if ok:
                                 res.otp_send_successfull = True
                                 res.user_id = email_result[0]
