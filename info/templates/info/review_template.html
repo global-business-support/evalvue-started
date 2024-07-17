@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review</title>
+    <style>
+        body {
+            background-color: #f7fafc;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            display: flex;
+            align-items: center;
+        }
+        .header img {
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+        }
+        .header div {
+            margin-left: 10px;
+        }
+        .header .name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333333;
+        }
+        .header .designation {
+            font-size: 14px;
+            color: #777777;
+        }
+        .content {
+            margin-top: 20px;
+            background-color: #edf2f7;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .content .comment {
+            font-size: 14px;
+            color: #4a5568;
+            line-height: 1.5;
+        }
+        .separator {
+            background-color: #f56565;
+            width: 1px;
+            height: 100vh;
+        }
+        .image {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow: hidden;
+            background-color: #edf2f7;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .image img {
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            object-fit: scale-down;
+        }
+    </style>
+</head>
+
+<body>
+    <table class="container" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <tr>
+            <td>
+                <table class="header" cellpadding="0" cellspacing="0" style="width: 100%; display: flex; align-items: center;">
+                    <tr>
+                        <td style="width: 40px;">
+                            <img src="{{ organization_image }}" alt="Company Logo" style="border-radius: 50%; width: 40px; height: 40px;">
+                        </td>
+                        <td style="padding-left: 10px;">
+                            <div class="name" style="font-size: 16px; font-weight: bold; color: #333333;">
+                                {{ organization_name }}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <table class="content" cellpadding="0" cellspacing="0" style="width: 100%; margin-top: 20px; background-color: #edf2f7; padding: 20px; border-radius: 8px;">
+                    <tr>
+                        <td>
+                            <table class="header" cellpadding="0" cellspacing="0" style="width: 100%; display: flex; align-items: center;">
+                                <tr>
+                                    <td style="width: 40px;">
+                                        <img src="{{ employee_image }}" alt="Employee Image" style="border-radius: 50%; width: 40px; height: 40px;">
+                                    </td>
+                                    <td style="padding-left: 10px;">
+                                        <div class="name" style="font-size: 16px; font-weight: bold; color: #333333;">
+                                            {{ employee_name }}
+                                        </div>
+                                        <div class="designation" style="font-size: 14px; color: #777777;">
+                                            {{ designation }}
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            {% if image %}
+                            <div class="content" style="margin-top: 20px; background-color: #edf2f7; padding: 20px; border-radius: 8px;">
+                                <table style="width: 100%;">
+                                    <tr>
+                                        <td style="width: 48%; background-color: #edf2f7; padding: 10px; border-radius: 8px;">
+                                            <p class="comment" style="font-size: 14px; color: #4a5568; line-height: 1.5; word-wrap: break-word;">
+                                                {{ comment }}
+                                            </p>
+                                        </td>
+                                        <td style="width: 1px; background-color: #f56565;"></td>
+                                        <td style="width: 48%; max-height: 400px; overflow: hidden; background-color: #edf2f7; padding: 10px; border-radius: 8px;">
+                                            <img src="{{ image }}" alt="Review-Image" style="border-radius: 8px; width: 100%; height: auto; object-fit: scale-down;">
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="content" style="margin-top: 20px; background-color: #edf2f7; padding: 20px; border-radius: 8px;">
+                                <p class="comment" style="font-size: 14px; color: #4a5568; line-height: 1.5; word-wrap: break-word;">
+                                    {{ comment }}
+                                </p>
+                            </div>
+                            {% endif %}
+                            <div class="rating" style="margin-top: 20px; padding: 10px;">
+                                <span style="color: #333333; font-weight: bold; font-size: 14px;">Rating:</span>
+                                <span style="color: #4a5568; font-size: 14px;">
+                                    {{ rating }}
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <div class="footer">
+      <p>This email was sent automatically. Please do not reply.</p>
+  </div>
+</body>
+
+</html>

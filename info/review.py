@@ -13,6 +13,7 @@ class review:
         self.designation = None
         self.organization_image = None
         self.employee_image = None
+        self.employee_email = None
     def to_dict(self):
         rev = {}
         

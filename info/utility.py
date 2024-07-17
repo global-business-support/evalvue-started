@@ -45,7 +45,7 @@ def save_image(folder_name,image):
             destination.write(chunk)
     return file_db_path
 
-def send_email(to_email,template_name,place_holder):
+def send_email(to_email,template_name,subject,place_holder):
     try:
         with transaction.atomic():
             with connection.cursor() as cursor:
@@ -53,7 +53,7 @@ def send_email(to_email,template_name,place_holder):
                 
                 if to_email:
                     email = EmailMessage(
-                        subject = "OTP Verification",
+                        subject = subject,
                         body = msg,
                         from_email=settings.DEFAULT_FROM_EMAIL,
                         to = [to_email],
