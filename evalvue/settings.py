@@ -118,13 +118,12 @@ TEMPLATES = [
 WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 # test
-database_media = 'https://api.evalvue.com/media/'
-payment_url = 'http://payment.api.evalvue.com/'
-# payment_url = 'http://localhost:8080/'
+database_media = 'https://test.api.evalvue.com/media/'
+payment_url = 'http://test.payment.api.evalvue.com/'
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'prod_db',
+        'NAME': 'testdb',
         'USER': 'SA',
         'PASSWORD': 'welcome4U@',
         'HOST': '93.127.185.167',
