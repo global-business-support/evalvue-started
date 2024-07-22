@@ -118,7 +118,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'evalvue.wsgi.application'
 
 # test
-database_media = 'https://test.api.evalvue.com/media/'
+database_media = 'http://test.api.evalvue.com/media/'
 payment_url = 'http://test.payment.api.evalvue.com/'
 DATABASES = {
     'default': {
