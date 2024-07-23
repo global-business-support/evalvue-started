@@ -449,6 +449,7 @@ class ShootOtpAPIView(APIView):
                 email = data.get("email")
                 user_verification = data.get("user_verification")
                 employee_verification = data.get("employee_verification")
+                login_employee = data.get("login_employee")
                 logger.info(data)
                 res.otp_send_successfull = False
                 if not validate_email(email):
@@ -456,22 +457,37 @@ class ShootOtpAPIView(APIView):
                     res.error = 'Invalid email'
                 else:
                     with connection.cursor() as cursor:
+                        subject = "OTP Verification"
                         if employee_verification:
                             cursor.execute("SELECT EmployeeId, Email from [Employee] where email = %s",[email])
                             email_result = cursor.fetchone()
                         elif user_verification:
                             cursor.execute("SELECT UserId, Email from [User] where email = %s",[email])
                             email_result = cursor.fetchone()
+                        elif login_employee:
+                            cursor.execute("SELECT EmployeeId, Email from [Employee] where email = %s",[email])
+                            email_result = cursor.fetchone()
+                            employee_exist = False
+                            if email_result:
+                                employee_exist = True
+                                subject = "Login OTP"
+
                         if email_result:
                             otp_number = ''.join(random.choices('0123456789', k=6))
                             cursor.execute("INSERT into [OTP] (Email, OtpNumber, Is_Verified, CreatedOn) VALUES(%s,%s,%s,GETDATE())",[email_result[1], otp_number,False])
 
-                            ok = send_email(email_result[1],email_otp_template_path,"OTP Verification",{'otp_number': otp_number})
+                            ok = send_email(email_result[1],email_otp_template_path,subject,{'otp_number': otp_number})
                             if ok:
                                 res.otp_send_successfull = True
-                                res.user_id = email_result[0]
+                                if employee_exist:
+                                    res.employee_id = email_result[0]
+                                else:
+                                    res.user_id = email_result[0]
                                 res.email = email_result[1]
                         else:
+                            if not employee_exist:
+                                res.error = "Email not exist's."
+                                return Response(res.convertToJSON(), status=status.HTTP_400_BAD_REQUEST)
                             res.error = reset_password_email_not_found 
                 return Response(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
