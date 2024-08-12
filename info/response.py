@@ -75,7 +75,7 @@ class response:
         self.is_payment_already_done = None
         self.payment_error = None
         self.employee_data_inserted_successfull = None
-        self.is_access_token_sent_successfull = True
+        self.is_access_token_sent_successfull = None
 
     def convertToJSON(self):
         res = {}
