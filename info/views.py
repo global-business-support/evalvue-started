@@ -249,12 +249,12 @@ class LoginUserAPIView(APIView):
                     res.error = 'Email and password are required'
                 else:
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT UserId,Name Password,IsVerified FROM [User] WHERE Email = %s", [email])
+                        cursor.execute("SELECT UserId,Name, Password,IsVerified FROM [User] WHERE Email = %s", [email])
                         user_details = cursor.fetchone()
                         if user_details :
                             user_id = user_details[0]
-                            stored_password = user_details[1]
-                            is_verified = user_details[2]
+                            stored_password = user_details[2]
+                            is_verified = user_details[3]
                             ok = verify_password(stored_password, password, salt)
                             if ok and is_verified == 1:
                                 user_data = CustomObject(user_id,email)
