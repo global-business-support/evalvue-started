@@ -249,7 +249,7 @@ class LoginUserAPIView(APIView):
                     res.error = 'Email and password are required'
                 else:
                     with connection.cursor() as cursor:
-                        cursor.execute("SELECT UserId, Password,IsVerified FROM [User] WHERE Email = %s", [email])
+                        cursor.execute("SELECT UserId,Name Password,IsVerified FROM [User] WHERE Email = %s", [email])
                         user_details = cursor.fetchone()
                         if user_details :
                             user_id = user_details[0]
@@ -265,6 +265,7 @@ class LoginUserAPIView(APIView):
 
                                 res.refresh  = str(refresh)
                                 res.access = str(access_token)
+                                res.user_name = user_details[1]
                                 res.user_id = user_id
                                 res.is_user_verified = True
                                 res.is_login_successfull = True
@@ -331,7 +332,7 @@ class CreateReviewAPIView(APIView):
 
                     if review_id_inserted_row:
                         review_id = review_id_inserted_row[0]
-                        cursor.execute("INSERT into ReviewEmployeeOrganizationMapping(ReviewId, OrganizationId, EmployeeId, CreatedOn) values(%s,%s,%s,GETDATE())",[review_id,organization_id,employee_id])
+                        cursor.execute("INSERT into ReviewEmployeeOrganizationMapping(ReviewId, OrganizationId, EmployeeId, CreatedOn,IsReported) values(%s,%s,%s,GETDATE(),%s)",[review_id,organization_id,employee_id,0])
                     cursor.execute("SELECT o.[Name], o.[Image], e.[Name], e.[Image] , e.Email,e.Designation FROM Organization o JOIN EmployeeOrganizationMapping em ON o.OrganizationId = em.OrganizationId JOIN Employee e ON e.EmployeeId = em.EmployeeId WHERE em.EmployeeId = %s and em.StatusId = 1",[employee_id])
                     employee_and_organization_details = cursor.fetchone()
                     rev.organization_name = employee_and_organization_details[0]
@@ -1501,6 +1502,69 @@ class PaymentHistoryAPIView(APIView):
             res.is_payment_history_sent_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+import pandas as pd
+class AddEmployeeByExcelAPIView(APIView):
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = request.data
+                user_id = getattr(request, 'user_id', None)
+                file = request.FILES['file']
+                res = response()
+                df = pd.read_excel(file, engine='openpyxl')
+                with connection.cursor() as cursor:
+                    for _, row in df.iterrows():
+                        cursor.execute("INSERT INTO Employee (Name, Email, MobileNumber,AadharNumber,Designation,CreatedOn) VALUES (%s,%s,%s,%s,%s,GETDATE())",[capitalize_words(row['Name']), row['Email'], row['MobileNumber'],row['AadharNumber'],capitalize_words(row['Designation'])])
+                    res.employee_data_inserted_successfull = True
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.employee_data_inserted_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.employee_data_inserted_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class RefreshAccessTokenAPIView(APIView):
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = request.data
+                refresh_token = data.get("refresh_token")
+                res = response()
+                if not refresh_token:
+                    res.error = refresh_token_required
+                    return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+                token = RefreshToken(refresh_token)
+            
+                # Create a new access token
+                access_token = token.access_token
+                
+                # Optionally, generate a new refresh token if rotation is enabled
+                new_refresh_token = token
+                res.access = str(access_token)
+                res.refresh  = str(new_refresh_token)
+                res.is_access_token_sent_successfull = True
+                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_access_token_sent_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_access_token_sent_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+
+                
+
                 
 
 

@@ -2,6 +2,7 @@ class response:
 
     def __init__(self):
         self.user_id = None
+        self.user_name = None
         self.email = None
         self.organization_id=None
         self.employee_id = None
@@ -73,6 +74,8 @@ class response:
         self.is_payment_history_sent_successfull = None
         self.is_payment_already_done = None
         self.payment_error = None
+        self.employee_data_inserted_successfull = None
+        self.is_access_token_sent_successfull = True
 
     def convertToJSON(self):
         res = {}
