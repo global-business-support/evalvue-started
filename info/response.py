@@ -76,6 +76,10 @@ class response:
         self.payment_error = None
         self.employee_data_inserted_successfull = None
         self.is_access_token_sent_successfull = None
+        self.error_list = None
+        self.is_employee_added_successfull_by_excel = None
+        self.is_excel_error_data_sent_successfull = None
+
 
     def convertToJSON(self):
         res = {}
