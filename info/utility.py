@@ -159,24 +159,33 @@ def validate_employee(email,mobile_number,aadhar_number,res):
             cursor.execute("SELECT EmployeeId, Name FROM Employee where Email = %s",[email])
             employee_details_by_email = cursor.fetchone()
             if employee_details_by_email:
-                employee_id_by_email = employee_details_by_email[0] 
-                cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_email])
-                organization_id_already_mapped = cursor.fetchone()
-                if organization_id_already_mapped:
+                employee_id_by_email = employee_details_by_email[0]
+                cursor.execute("SELECT COUNT(CASE WHEN StatusId = 1 THEN 1 END) from EmployeeOrganizationMapping where EmployeeId = %s",[employee_id_by_email])
+                organization_id_already_mapped_count = cursor.fetchone()[0]
+                if organization_id_already_mapped_count > 0:
                     res.is_employee_register_successfull = False
                     res.error = constant.employee_already_mapped_to_organization_by_email.format(email)
                     return True
+                else:
+                    res.is_employee_register_successfull = False
+                    res.error = constant.email_already_exist_error.format(email)
+                    return True
+
     if not email and not aadhar_number:
         with connection.cursor() as cursor:
             cursor.execute("SELECT EmployeeId, Name FROM Employee where MobileNumber = %s",[mobile_number])
             employee_details_by_mobile_number = cursor.fetchone()
             if employee_details_by_mobile_number:
                 employee_id_by_mobile_number = employee_details_by_mobile_number[0] 
-                cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_mobile_number])
-                organization_id_already_mapped = cursor.fetchone()
-                if organization_id_already_mapped:
+                cursor.execute("SELECT COUNT(CASE WHEN StatusId = 1 THEN 1 END) from EmployeeOrganizationMapping where EmployeeId = %s",[employee_id_by_mobile_number])
+                organization_id_already_mapped_count = cursor.fetchone()[0]
+                if organization_id_already_mapped_count > 0:
                     res.is_employee_register_successfull = False
                     res.error = constant.employee_already_mapped_to_organization_by_mobile_number.format(mobile_number)
+                    return True
+                else:
+                    res.is_employee_register_successfull = False
+                    res.error = constant.mobile_number_already_exist_error.format(mobile_number)
                     return True
     if not email and not mobile_number:
         with connection.cursor() as cursor:
@@ -184,12 +193,17 @@ def validate_employee(email,mobile_number,aadhar_number,res):
             employee_details_by_aadhar_number = cursor.fetchone()
             if employee_details_by_aadhar_number:
                 employee_id_by_aadhar_number = employee_details_by_aadhar_number[0]
-                cursor.execute("SELECT OrganizationId from EmployeeOrganizationMapping where EmployeeId = %s and StatusId = 1 ",[employee_id_by_aadhar_number])
-                organization_id_already_mapped = cursor.fetchone()
-                if organization_id_already_mapped:
+                cursor.execute("SELECT COUNT(CASE WHEN StatusId = 1 THEN 1 END) from EmployeeOrganizationMapping where EmployeeId = %s",[employee_id_by_aadhar_number])
+                organization_id_already_mapped_count = cursor.fetchone()[0]
+                if organization_id_already_mapped_count > 0:
                     res.is_employee_register_successfull = False
                     res.error = constant.employee_already_mapped_to_organization_by_aadhar.format(aadhar_number)
                     return True
+                else:
+                    res.is_employee_register_successfull = False
+                    res.error = constant.aadhar_number_already_exist_error.format(aadhar_number)
+                    return True
+
     
 def validate_employee_on_edit(employee_id,email,mobile_number,aadhar_number,res):
     if not mobile_number and not aadhar_number:
@@ -236,10 +250,15 @@ def generate_reciept(subscription_id,res,pay):
             pay.amount = data.get('amount')
             pay.razorpay_order_id = data.get('razorpay_order_id')
             pay.payment_status = data.get('payment_status')
-            pay.transaction_id = data.get('transaction_id')
-            pay.payment_mode = data.get('payment_mode')
             pay.date = data.get('date_time')
-            pay.upi = data.get('payment_through_upi')
+            payment_mode = data.get('payment_mode')
+            if payment_mode == 'upi':
+                pay.transaction_id = data.get('transaction_id')
+                pay.upi_id = data.get('upi_id')
+            else:
+                pay.card_id = data.get('card_id')
+                pay.last_four = data.get('last_four')
+                pay.card_network = data.get('card_network')
             generate_reciept_data.append(pay.to_dict())
             res.generate_reciept_data = generate_reciept_data
             res.is_generate_reciept_data_send_successfull = True

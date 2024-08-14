@@ -1513,19 +1513,59 @@ class AddEmployeeByExcelAPIView(APIView):
                 res = response()
                 df = pd.read_excel(file, engine='openpyxl')
                 with connection.cursor() as cursor:
-                    for _, row in df.iterrows():
-                        cursor.execute("INSERT INTO Employee (Name, Email, MobileNumber,AadharNumber,Designation,CreatedOn) VALUES (%s,%s,%s,%s,%s,GETDATE())",[capitalize_words(row['Name']), row['Email'], row['MobileNumber'],row['AadharNumber'],capitalize_words(row['Designation'])])
-                    res.employee_data_inserted_successfull = True
-                return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+                    error_list = []
+                    for index, row in df.iterrows():
+                        ind = index+2
+                        emp = employee()
+                        employee_name = capitalize_words(row['Name'])
+                        email = row['Email']
+                        mobile_number = str(row['MobileNumber'])
+                        aadhar_number = str(row['AadharNumber'])
+                        designation = capitalize_words(row['Designation'])
+                        res.is_employee_added_successfull_by_excel = True
+                        if not validate_name(employee_name):
+                            res.is_employee_added_successfull_by_excel = False
+                            emp.invalid_name = True
+                        if not validate_aadhar_number(aadhar_number):
+                            res.is_employee_added_successfull_by_excel = False
+                            emp.invalid_aadhar = True
+                        if not validate_email(email):
+                            res.is_employee_added_successfull_by_excel = False
+                            emp.invalid_email = True
+                        if not validate_mobile_number(mobile_number):
+                            res.is_employee_added_successfull_by_excel = False
+                            emp.invalid_mobile_number = True
+                        if not validate_designation(designation):
+                            res.is_employee_added_successfull_by_excel = False
+                            emp.invalid_designation = True
+                        if not res.is_employee_added_successfull_by_excel:
+                            emp.index = ind
+                            error_list.append(emp.to_dict())
+                        else:
+                            if validate_employee(email,None,None,res):
+                                res.is_employee_added_successfull_by_excel = False
+                                emp.email_already_exists = True
+                            if validate_employee(None,mobile_number,None,res):
+                                res.is_employee_added_successfull_by_excel = False
+                                emp.mobile_number_already_exists = True
+                            if validate_employee(None,None,aadhar_number,res):
+                                res.is_employee_added_successfull_by_excel = False
+                                emp.aadhar_number_already_exists = True
+                            if emp.email_already_exists or emp.mobile_number_already_exists or emp.aadhar_number_already_exist:
+                                emp.index = ind
+                                error_list.append(emp.to_dict())
+                    res.error_list = error_list
+                    res.is_excel_error_data_sent_successfull = True
+                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
-            res.employee_data_inserted_successfull = False
+            res.is_excel_error_data_sent_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             logger.exception('An unexpected error occurred: {}'.format(str(e)))
-            res.employee_data_inserted_successfull = False
+            res.is_excel_error_data_sent_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         

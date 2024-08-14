@@ -21,6 +21,8 @@ class payment:
         self.razorpay_order_id = None
         self.transaction_id = None
         self.payment_mode = None
+        self.organization_name = None
+        self.amount= None
 
         self.org_name = None
         self.order_id = None

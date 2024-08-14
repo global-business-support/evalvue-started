@@ -13,6 +13,16 @@ class employee:
         self.image = None
         self.average_rating = None
         self.avg_rating = None
+        self.email_already_exists = None
+        self.mobile_number_already_exists = None
+        self.aadhar_number_already_exists = None
+        self.invalid_name = None
+        self.invalid_aadhar= None
+        self.invalid_email = None
+        self.invalid_mobile_number = None
+        self.invalid_designation = None
+        self.aadhar_number_already_exist = None
+        self.index = None
 
     # def to_dict(self):
     #     return {
