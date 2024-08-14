@@ -49,7 +49,7 @@ class response:
         self.is_organization_rejected_successfull = None
         self.is_user_verified_successfull = None
         self.organizations_paid_count = None
-
+        self.employee_data_added_by_excel_successfull = None
         
         self.refresh = None
         self.employee_editable_data_send_successfull = None
@@ -77,7 +77,7 @@ class response:
         self.employee_data_inserted_successfull = None
         self.is_access_token_sent_successfull = None
         self.error_list = None
-        self.is_employee_added_successfull_by_excel = None
+        self.added_for_one_row = None
         self.is_excel_error_data_sent_successfull = None
 
 

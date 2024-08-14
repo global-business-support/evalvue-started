@@ -135,9 +135,6 @@ DATABASES = {
     }
 }
 
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 #prod
 # database_media = 'https://api.evalvue.com/media/'
 # payment_url = 'http://payment.api.evalvue.com/'

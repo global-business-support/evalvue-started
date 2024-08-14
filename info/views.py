@@ -1509,6 +1509,7 @@ class AddEmployeeByExcelAPIView(APIView):
             with transaction.atomic():
                 data = request.data
                 user_id = getattr(request, 'user_id', None)
+                organization_id = data.get("organization_id")
                 file = request.FILES['file']
                 res = response()
                 df = pd.read_excel(file, engine='openpyxl')
@@ -1522,41 +1523,49 @@ class AddEmployeeByExcelAPIView(APIView):
                         mobile_number = str(row['MobileNumber'])
                         aadhar_number = str(row['AadharNumber'])
                         designation = capitalize_words(row['Designation'])
-                        res.is_employee_added_successfull_by_excel = True
+                        added_for_one_row = True
                         if not validate_name(employee_name):
-                            res.is_employee_added_successfull_by_excel = False
+                            added_for_one_row = False
                             emp.invalid_name = True
                         if not validate_aadhar_number(aadhar_number):
-                            res.is_employee_added_successfull_by_excel = False
+                            added_for_one_row = False
                             emp.invalid_aadhar = True
                         if not validate_email(email):
-                            res.is_employee_added_successfull_by_excel = False
+                            added_for_one_row = False
                             emp.invalid_email = True
                         if not validate_mobile_number(mobile_number):
-                            res.is_employee_added_successfull_by_excel = False
+                            added_for_one_row = False
                             emp.invalid_mobile_number = True
                         if not validate_designation(designation):
-                            res.is_employee_added_successfull_by_excel = False
+                            added_for_one_row = False
                             emp.invalid_designation = True
-                        if not res.is_employee_added_successfull_by_excel:
+                        if not added_for_one_row:
                             emp.index = ind
                             error_list.append(emp.to_dict())
                         else:
                             if validate_employee(email,None,None,res):
-                                res.is_employee_added_successfull_by_excel = False
+                                added_for_one_row = False
                                 emp.email_already_exists = True
                             if validate_employee(None,mobile_number,None,res):
-                                res.is_employee_added_successfull_by_excel = False
+                                added_for_one_row = False
                                 emp.mobile_number_already_exists = True
                             if validate_employee(None,None,aadhar_number,res):
-                                res.is_employee_added_successfull_by_excel = False
+                                added_for_one_row = False
                                 emp.aadhar_number_already_exists = True
                             if emp.email_already_exists or emp.mobile_number_already_exists or emp.aadhar_number_already_exist:
                                 emp.index = ind
                                 error_list.append(emp.to_dict())
-                    res.error_list = error_list
-                    res.is_excel_error_data_sent_successfull = True
-                    return Response(res.convertToJSON(), status=status.HTTP_200_OK)
+                        if added_for_one_row:
+                            cursor.execute("INSERT INTO Employee(Name, Email, MobileNumber, AadharNumber, CreatedOn, Designation) VALUES(%s,%s,%s,%s,GETDATE(),%s)",[employee_name,email,mobile_number,aadhar_number,designation])
+                            cursor.execute("SELECT EmployeeId FROM Employee where AadharNumber = %s",[aadhar_number])
+                            employee_id_for_organization_mapping = cursor.fetchone()[0]
+                            cursor.execute("INSERT into EmployeeOrganizationMapping(EmployeeId,OrganizationId,StatusId,CreatedOn) values(%s,%s,%s,GETDATE())",[employee_id_for_organization_mapping,organization_id,1])
+                    if len(error_list)>0:
+                        res.error_list = error_list
+                        res.is_excel_error_data_sent_successfull = True
+                    else:
+                        res.employee_data_added_by_excel_successfull = True
+                    return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
         except IntegrityError as e:
             logger.exception('Database integrity error: {}'.format(str(e)))
             res.is_excel_error_data_sent_successfull = False
