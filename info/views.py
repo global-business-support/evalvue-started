@@ -459,6 +459,7 @@ class ShootOtpAPIView(APIView):
                 else:
                     with connection.cursor() as cursor:
                         subject = "OTP Verification"
+                        employee_exist = False
                         if employee_verification:
                             cursor.execute("SELECT EmployeeId, Email from [Employee] where email = %s",[email])
                             email_result = cursor.fetchone()
