@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path
-from .views import AddEmployeeByExcelAPIView, DocumentVerificationDataAPIview, PaymentHistoryAPIView, RefreshAccessTokenAPIView, SubscribeAPIview, SubscriptionHistoryDataAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview, VerifyPaymentAPIview
+from .views import AddEmployeeByExcelAPIView, DocumentVerificationDataAPIview, PaymentHistoryAPIView, RefreshAccessTokenAPIView, ScheduleDemoAPIView, SubscribeAPIview, SubscriptionHistoryDataAPIview, TopFiveEmployeeAPIview,EditOrganizationAPIview,EditEmployeeAPIview, VerifyOrganizationAPIview, VerifyPaymentAPIview
 from .views import CreateEmployeeAPIView, CreateReviewAPIView, CreateUserAPIView, DashboardFeedAPIview, EmployeeAPIView, EmployeeEditableDataAPIView, OrganizationEditableDataAPIView, SearchByAadharAPIview, ShootOtpAPIView, LoginUserAPIView, ReviewAPIView, TerminateEmployeeAPIView, UpdatePasswordAPIView, VerifyOtpAPIView,OrganizationAPIView,CreateOrganizationAPIview,AddOrganizationAPIview
 urlpatterns = [
     path('create/user/', CreateUserAPIView.as_view(), name='create_user'),
@@ -30,7 +30,8 @@ urlpatterns = [
     path('subscription/history/data/', SubscriptionHistoryDataAPIview.as_view(), name = 'subscription_history'),
     path('payment/history/', PaymentHistoryAPIView.as_view(), name ='payment_history'),
     path('add/employee/by/excel/', AddEmployeeByExcelAPIView.as_view(), name ='add_employee_by_excel'),
-    path('refresh/access/token/', RefreshAccessTokenAPIView.as_view(), name ='refresh_access_token')
+    path('refresh/access/token/', RefreshAccessTokenAPIView.as_view(), name ='refresh_access_token'),
+    path('schedule/demo/', ScheduleDemoAPIView.as_view(), name ='schedule_demo')
 
 
 ]
