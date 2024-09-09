@@ -1512,6 +1512,7 @@ class AddEmployeeByExcelAPIView(APIView):
                 user_id = getattr(request, 'user_id', None)
                 organization_id = data.get("organization_id")
                 file = request.FILES['file']
+                logger.info(data)
                 res = response()
                 df = pd.read_excel(file, engine='openpyxl')
                 with connection.cursor() as cursor:
@@ -1624,6 +1625,7 @@ class ScheduleDemoAPIView(APIView):
                 city = data.get("city")
                 address = data.get("address")
                 date = data.get("date")
+                logger.info(data)
                 res = response()
                 with connection.cursor() as cursor:
                     cursor.execute("INSERT INTO ScheduleDemo(Name, Email, Company, MobileNumber, City, Address, Date, CreatedOn) VALUES(%s,%s,%s,%s,%s,%s,%s,GETDATE())",[name,email,company,mobile_number,city,address,date])
