@@ -6,7 +6,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 class AuthMiddleware(MiddlewareMixin):
     def process_request(self, request):
-        open_paths = ['/login/user/','/create/user/','/shoot/otp/','/verify/otp/','/update/password/','/refresh/access/token/',]
+        open_paths = ['/login/user/','/create/user/','/shoot/otp/','/verify/otp/','/update/password/','/refresh/access/token/','/schedule/demo/',]
 
         if request.path in open_paths:
             return None

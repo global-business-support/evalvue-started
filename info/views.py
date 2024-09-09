@@ -1611,12 +1611,36 @@ class RefreshAccessTokenAPIView(APIView):
             res.is_access_token_sent_successfull = False
             res.error = generic_error_message
             return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+        
+class ScheduleDemoAPIView(APIView):
+    def post(self, request):
+        try:
+            with transaction.atomic():
+                data = request.data 
+                name = data.get("name")
+                email = data.get("email")
+                company = data.get("company")
+                mobile_number = data.get("mobile_number")
+                city = data.get("city")
+                address = data.get("address")
+                date = data.get("date")
+                res = response()
+                with connection.cursor() as cursor:
+                    cursor.execute("INSERT INTO ScheduleDemo(Name, Email, Company, MobileNumber, City, Address, Date, CreatedOn) VALUES(%s,%s,%s,%s,%s,%s,%s,GETDATE())",[name,email,company,mobile_number,city,address,date])
+                    res.is_data_added_successfull = True
+                    return Response(res.convertToJSON(), status=status.HTTP_201_CREATED)
 
-                
+        except IntegrityError as e:
+            logger.exception('Database integrity error: {}'.format(str(e)))
+            res.is_data_added_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-                
-
+        except Exception as e:
+            logger.exception('An unexpected error occurred: {}'.format(str(e)))
+            res.is_data_added_successfull = False
+            res.error = generic_error_message
+            return Response(res.convertToJSON(), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

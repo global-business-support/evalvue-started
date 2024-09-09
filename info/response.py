@@ -79,6 +79,7 @@ class response:
         self.error_list = None
         self.added_for_one_row = None
         self.is_excel_error_data_sent_successfull = None
+        self.is_data_added_successfull = None
 
 
     def convertToJSON(self):
